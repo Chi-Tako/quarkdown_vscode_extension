@@ -250,7 +250,7 @@ MIT License - see LICENSE file for details.
 
 ## 🎉 Changelog
 
-### 1.0.0 - Initial Release
+### 0.0.2 Initial Release
 - Complete Quarkdown language support
 - Advanced syntax highlighting for all Quarkdown constructs
 - IntelliSense with 50+ standard library functions
