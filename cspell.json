@@ -1,0 +1,40 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Quarkdown",
+    "quarkdown",
+    "darko",
+    "Darko",
+    "Segoe",
+    "Cascadia",
+    "BlinkMacSystemFont",
+    "vscode",
+    "webview",
+    "tsconfig",
+    "intellisense",
+    "mathjs",
+    "mathjax",
+    "webkit",
+    "stdout",
+    "stderr",
+    "rgba",
+    "qmd",
+    "slideshow",
+    "tmLanguage",
+    "webserver",
+    "repl",
+    "distzip",
+    "jvm"
+  ],
+  "enableFiletypes": [
+    "typescript",
+    "json",
+    "markdown"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "out/**",
+    "*.min.js"
+  ]
+}
