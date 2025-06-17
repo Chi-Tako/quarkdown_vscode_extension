@@ -1,0 +1,382 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Quarkdown",
+  "scopeName": "text.html.quarkdown",
+  "patterns": [
+    {
+      "include": "#quarkdown-functions"
+    },
+    {
+      "include": "#quarkdown-variables"
+    },
+    {
+      "include": "#quarkdown-control-flow"
+    },
+    {
+      "include": "#quarkdown-file-operations"
+    },
+    {
+      "include": "#quarkdown-directives"
+    },
+    {
+      "include": "#quarkdown-math"
+    },
+    {
+      "include": "#markdown-content"
+    }
+  ],
+  "repository": {
+    "quarkdown-functions": {
+      "patterns": [
+        {
+          "name": "meta.function.quarkdown",
+          "begin": "(\\.function)\\s*(\\{[^}]*\\})",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.function.quarkdown"
+            },
+            "2": {
+              "name": "entity.name.function.quarkdown"
+            }
+          },
+          "end": "(?=^\\s*$|^\\.)",
+          "patterns": [
+            {
+              "name": "variable.parameter.quarkdown",
+              "match": "\\b\\w+:"
+            },
+            {
+              "include": "#markdown-content"
+            }
+          ]
+        }
+      ]
+    },
+    "quarkdown-variables": {
+      "patterns": [
+        {
+          "name": "meta.variable.quarkdown",
+          "match": "(\\.var)\\s*(\\{[^}]*\\})\\s*(.*)$",
+          "captures": {
+            "1": {
+              "name": "keyword.control.variable.quarkdown"
+            },
+            "2": {
+              "name": "entity.name.variable.quarkdown"
+            },
+            "3": {
+              "name": "string.unquoted.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "variable.other.quarkdown",
+          "match": "\\.[a-zA-Z_][a-zA-Z0-9_]*"
+        }
+      ]
+    },
+    "quarkdown-control-flow": {
+      "patterns": [
+        {
+          "name": "meta.control.if.quarkdown",
+          "begin": "(\\.if)\\s*(\\{[^}]*\\})",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.conditional.quarkdown"
+            },
+            "2": {
+              "name": "meta.condition.quarkdown"
+            }
+          },
+          "end": "(?=^\\s*$|^\\.)",
+          "patterns": [
+            {
+              "include": "#markdown-content"
+            },
+            {
+              "include": "#quarkdown-variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.control.ifnot.quarkdown",
+          "begin": "(\\.ifnot)\\s*(\\{[^}]*\\})",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.conditional.quarkdown"
+            },
+            "2": {
+              "name": "meta.condition.quarkdown"
+            }
+          },
+          "end": "(?=^\\s*$|^\\.)",
+          "patterns": [
+            {
+              "include": "#markdown-content"
+            },
+            {
+              "include": "#quarkdown-variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.control.foreach.quarkdown",
+          "begin": "(\\.foreach)\\s*(\\{[^}]*\\})\\s*(\\w+):",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.loop.quarkdown"
+            },
+            "2": {
+              "name": "meta.range.quarkdown"
+            },
+            "3": {
+              "name": "variable.parameter.loop.quarkdown"
+            }
+          },
+          "end": "(?=^\\s*$|^\\.)",
+          "patterns": [
+            {
+              "include": "#markdown-content"
+            },
+            {
+              "include": "#quarkdown-variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.control.repeat.quarkdown",
+          "begin": "(\\.repeat)\\s*(\\{[^}]*\\})\\s*(\\w+):",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.loop.quarkdown"
+            },
+            "2": {
+              "name": "meta.count.quarkdown"
+            },
+            "3": {
+              "name": "variable.parameter.loop.quarkdown"
+            }
+          },
+          "end": "(?=^\\s*$|^\\.)",
+          "patterns": [
+            {
+              "include": "#markdown-content"
+            },
+            {
+              "include": "#quarkdown-variables"
+            }
+          ]
+        }
+      ]
+    },
+    "quarkdown-file-operations": {
+      "patterns": [
+        {
+          "name": "meta.include.quarkdown",
+          "match": "(\\.include)\\s*(\\{[^}]*\\})",
+          "captures": {
+            "1": {
+              "name": "keyword.control.include.quarkdown"
+            },
+            "2": {
+              "name": "string.quoted.double.filename.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.read.quarkdown",
+          "match": "(\\.read)\\s*(\\{[^}]*\\})(?:\\s*(lines:\\{[^}]*\\}))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.read.quarkdown"
+            },
+            "2": {
+              "name": "string.quoted.double.filename.quarkdown"
+            },
+            "3": {
+              "name": "meta.lines.quarkdown"
+            }
+          }
+        }
+      ]
+    },
+    "quarkdown-directives": {
+      "patterns": [
+        {
+          "name": "meta.directive.theme.quarkdown",
+          "match": "(\\.theme)\\s*(\\{[^}]*\\})(?:\\s*(layout:\\{[^}]*\\}))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "string.unquoted.theme.quarkdown"
+            },
+            "3": {
+              "name": "string.unquoted.layout.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.doctype.quarkdown",
+          "match": "(\\.doctype)\\s*(\\{[^}]*\\})",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "string.unquoted.doctype.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.pageformat.quarkdown",
+          "match": "(\\.pageformat)\\s*(\\{[^}]*\\})(?:\\s*(orientation:\\{[^}]*\\}))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "string.unquoted.pageformat.quarkdown"
+            },
+            "3": {
+              "name": "string.unquoted.orientation.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.slides.quarkdown",
+          "match": "(\\.slides)(?:\\s*(transition:\\{[^}]*\\}))?(?:\\s*(speed:\\{[^}]*\\}))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "string.unquoted.transition.quarkdown"
+            },
+            "3": {
+              "name": "string.unquoted.speed.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.tableofcontents.quarkdown",
+          "match": "(\\.tableofcontents)(?:\\s*(depth:\\{[^}]*\\}))?(?:\\s*(title:\\{[^}]*\\}))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "meta.depth.quarkdown"
+            },
+            "3": {
+              "name": "string.unquoted.title.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.layout.quarkdown",
+          "match": "(\\.(?:row|column|grid|center|box|figure))(?:\\s*([^:]*):)?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.layout.quarkdown"
+            },
+            "2": {
+              "name": "meta.layout.parameters.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.math.quarkdown",
+          "match": "(\\.(?:sum|multiply|divide|pow|sin|cos|tan|truncate|round|iseven|isgreater|pi))\\s*(.*)",
+          "captures": {
+            "1": {
+              "name": "support.function.math.quarkdown"
+            },
+            "2": {
+              "name": "meta.function.arguments.quarkdown"
+            }
+          }
+        },
+        {
+          "name": "meta.directive.generic.quarkdown",
+          "match": "(\\.\\w+)\\s*(\\{[^}]*\\})?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.quarkdown"
+            },
+            "2": {
+              "name": "string.unquoted.quarkdown"
+            }
+          }
+        }
+      ]
+    },
+    "quarkdown-math": {
+      "patterns": [
+        {
+          "name": "string.other.math.tex",
+          "begin": "\\$\\$",
+          "end": "\\$\\$",
+          "patterns": [
+            {
+              "name": "constant.character.escape.tex",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.math.tex",
+          "begin": "\\$",
+          "end": "\\$",
+          "patterns": [
+            {
+              "name": "constant.character.escape.tex",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "markdown-content": {
+      "patterns": [
+        {
+          "name": "markup.heading.markdown",
+          "match": "^#{1,6}\\s+.*$"
+        },
+        {
+          "name": "markup.bold.markdown",
+          "begin": "\\*\\*",
+          "end": "\\*\\*"
+        },
+        {
+          "name": "markup.italic.markdown",
+          "begin": "\\*",
+          "end": "\\*"
+        },
+        {
+          "name": "markup.inline.raw.markdown",
+          "begin": "`",
+          "end": "`"
+        },
+        {
+          "name": "markup.fenced_code.block.markdown",
+          "begin": "^```",
+          "end": "^```"
+        },
+        {
+          "name": "markup.list.unnumbered.markdown",
+          "match": "^\\s*[-*+]\\s+"
+        },
+        {
+          "name": "markup.list.numbered.markdown",
+          "match": "^\\s*\\d+\\.\\s+"
+        },
+        {
+          "name": "markup.underline.link.markdown",
+          "match": "\\[([^\\]]+)\\]\\(([^\\)]+)\\)"
+        }
+      ]
+    }
+  }
+}

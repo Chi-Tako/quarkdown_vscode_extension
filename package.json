@@ -1,0 +1,228 @@
+{
+  "name": "quarkdown-vscode",
+  "displayName": "Quarkdown",
+  "description": "Quarkdown support for Visual Studio Code",
+  "version": "1.0.0",
+  "publisher": "quarkdown",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "quarkdown",
+    "markdown",
+    "qmd",
+    "document"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:quarkdown"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "quarkdown",
+        "aliases": [
+          "Quarkdown",
+          "qmd"
+        ],
+        "extensions": [
+          ".qmd"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/quarkdown-light.svg",
+          "dark": "./icons/quarkdown-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quarkdown",
+        "scopeName": "text.html.quarkdown",
+        "path": "./syntaxes/quarkdown.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "quarkdown.preview",
+        "title": "📄 Open Preview",
+        "category": "Quarkdown",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "quarkdown.exportPdf",
+        "title": "📄 Export to PDF",
+        "category": "Quarkdown",
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "quarkdown.exportSlides",
+        "title": "🎞️ Export to Slides",
+        "category": "Quarkdown",
+        "icon": "$(device-camera-video)"
+      },
+      {
+        "command": "quarkdown.createProject",
+        "title": "🚀 Create New Project",
+        "category": "Quarkdown",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "quarkdown.addChapter",
+        "title": "📖 Add Chapter",
+        "category": "Quarkdown",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "quarkdown.addLibraryFile",
+        "title": "📚 Add Library File",
+        "category": "Quarkdown",
+        "icon": "$(library)"
+      },
+      {
+        "command": "quarkdown.insertFunction",
+        "title": "⚡ Insert Function",
+        "category": "Quarkdown",
+        "icon": "$(symbol-function)"
+      },
+      {
+        "command": "quarkdown.insertVariable",
+        "title": "📊 Insert Variable",
+        "category": "Quarkdown",
+        "icon": "$(symbol-variable)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "quarkdown.preview",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.exportPdf",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.exportSlides",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.insertFunction",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.insertVariable",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.addChapter",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "quarkdown.addLibraryFile",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "quarkdown.preview",
+          "when": "editorLangId == quarkdown",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "quarkdown.insertFunction",
+          "when": "editorLangId == quarkdown",
+          "group": "quarkdown@1"
+        },
+        {
+          "command": "quarkdown.insertVariable",
+          "when": "editorLangId == quarkdown",
+          "group": "quarkdown@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "quarkdown.createProject",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@10"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "quarkdown.preview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorLangId == quarkdown"
+      },
+      {
+        "command": "quarkdown.insertFunction",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "editorLangId == quarkdown"
+      },
+      {
+        "command": "quarkdown.insertVariable",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorLangId == quarkdown"
+      }
+    ],
+    "configuration": {
+      "title": "Quarkdown",
+      "properties": {
+        "quarkdown.previewTheme": {
+          "type": "string",
+          "default": "darko",
+          "enum": ["", "darko", "academic"],
+          "enumDescriptions": ["Default theme", "Dark theme", "Academic theme"],
+          "description": "Default theme for preview"
+        },
+        "quarkdown.previewLayout": {
+          "type": "string",
+          "default": "minimal",
+          "enum": ["minimal", "standard", "wide", "narrow"],
+          "description": "Default layout for preview"
+        },
+        "quarkdown.enableMath": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable MathJax for mathematical expressions"
+        },
+        "quarkdown.enableAutoPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update preview when document changes"
+        },
+        "quarkdown.cliPath": {
+          "type": "string",
+          "default": "quarkdown",
+          "description": "Path to Quarkdown CLI executable"
+        },
+        "quarkdown.hasShownWelcome": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the welcome message has been shown"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {}
+  
+}

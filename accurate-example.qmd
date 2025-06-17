@@ -1,0 +1,252 @@
+# 🚀 Accurate Quarkdown Example
+
+.doctype {html}
+.theme {darko}
+
+## 📋 Document Metadata
+
+.var {title} {Accurate Quarkdown Example}
+.var {author} {Quarkdown Team}
+.var {version} {1.5.1}
+.var {created} {2024-12-16}
+
+**Title:** .title  
+**Author:** .author  
+**Version:** .version  
+**Created:** .created
+
+## ⚡ Function Definitions
+
+Define custom functions with parameters:
+
+.function {greet}
+    to from:
+    **Hello, .to!** 👋 This message is from .from.
+
+.function {highlight}
+    text color:
+    <mark style="background-color: .color">.text</mark>
+
+.function {codeblock}
+    language code:
+    ```
+    .language
+    .code
+    ```
+
+## 🎯 Function Usage
+
+Now let's use our defined functions:
+
+.greet
+    to: {Amazing Developer}
+    from: {Quarkdown VSCode Extension}
+
+.highlight
+    text: {This is highlighted text}
+    color: {#ffeb3b}
+
+.codeblock
+    language: {javascript}
+    code: {
+        function hello() {
+            console.log("Hello from Quarkdown!");
+        }
+    }
+
+## 📊 Variables and References
+
+.var {projectName} {Quarkdown VSCode Extension}
+.var {featureCount} {50}
+.var {rating} {5}
+
+**Project:** .projectName  
+**Features:** .featureCount+ amazing features  
+**Rating:** .rating/5 stars ⭐
+
+## 🔄 Control Flow
+
+### Conditional Logic
+
+.var {showAdvanced} {true}
+.var {userType} {developer}
+
+.if {.showAdvanced}
+🎯 **Advanced Mode Enabled**
+- All features unlocked
+- Expert tools available
+- Advanced syntax supported
+
+.ifnot {.showAdvanced}
+📚 **Basic Mode**
+- Getting started features
+- Simple syntax
+- Guided experience
+
+### Loops and Iteration
+
+**Foreach Example:**
+.foreach {1..5} step:
+- Step .step: Building Quarkdown mastery
+
+**Repeat Example:**
+.repeat {3} level:
+🏆 **Achievement Level .level** unlocked!
+
+## 📁 File Operations
+
+.include {lib/utility-functions.qmd}
+
+*Note: This would include shared functions from a library file.*
+
+.read {data/sample.txt} lines:{1..10}
+
+*Note: This would read lines 1-10 from a data file.*
+
+## 🎨 Layout Functions
+
+### Stack Layouts
+
+.row alignment:{center} gap:{20px}:
+    .column:
+        ### Left Column
+        Content for the left side of the layout.
+    
+    .column:
+        ### Right Column
+        Content for the right side of the layout.
+
+.grid {3} gap:{15px}:
+    Item 1
+    Item 2
+    Item 3
+    Item 4
+    Item 5
+    Item 6
+
+### Container Functions
+
+.center:
+🎯 **This content is centered**
+
+.box padding:{20px} border:{2px solid #333}:
+📦 **This is a boxed container** with custom styling.
+
+## 🧮 Mathematical Expressions
+
+Inline mathematics: The famous equation $E = mc^2$ demonstrates mass-energy equivalence.
+
+Block mathematics:
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+Complex equation:
+$$
+\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}
+$$
+
+## 📊 Tables and Data
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Syntax Highlighting | ✅ | Rich color coding |
+| Auto-completion | ✅ | IntelliSense support |
+| Live Preview | ✅ | Real-time rendering |
+| Export Options | ✅ | PDF, HTML, Slides |
+| Project Templates | ✅ | Quick start |
+
+## 🎬 Document Types
+
+### HTML Document (Current)
+.doctype {html}
+Standard web document with full interactivity.
+
+### Slide Presentation
+.doctype {slides}
+Create reveal.js presentations with slide transitions.
+
+### Paged Document
+.doctype {paged}
+Print-ready documents with page breaks and formatting.
+
+## 🎨 Themes and Styling
+
+Available themes:
+- **Default**: Clean professional look
+- **Darko**: Dark theme with vibrant colors (current)
+- **Academic**: Optimized for research papers
+
+.theme {darko}
+
+Page formatting options:
+.pageformat {A4} orientation:{portrait}
+
+## 📝 Advanced Markdown
+
+### Code Blocks with Syntax Highlighting
+
+```typescript
+interface QuarkdownConfig {
+    theme: string;
+    layout: string;
+    doctype: DocumentType;
+    enableMath: boolean;
+}
+
+const config: QuarkdownConfig = {
+    theme: 'darko',
+    layout: 'standard',
+    doctype: 'html',
+    enableMath: true
+};
+```
+
+### Lists and Nested Content
+
+#### Unordered Lists
+- Primary feature
+  - Sub-feature A
+  - Sub-feature B
+    - Deep nested item
+- Secondary feature
+
+#### Ordered Lists
+1. First step in the process
+2. Second step with details
+   1. Sub-step 2.1
+   2. Sub-step 2.2
+3. Final step
+
+### Links and References
+
+Visit the [Quarkdown Repository](https://github.com/iamgio/quarkdown) for:
+- Complete documentation
+- Latest releases
+- Community support
+- Contributing guidelines
+
+## 🔗 Cross-References
+
+Reference variables across the document:
+- Project: .projectName
+- Features: .featureCount
+- Version: .version
+
+## 🏁 Conclusion
+
+This example demonstrates Quarkdown's powerful capabilities:
+
+1. **Function System**: Define and use custom functions
+2. **Variable Management**: Store and reference data
+3. **Control Structures**: Conditional logic and loops
+4. **Layout Functions**: Advanced document layouts
+5. **File Operations**: Modular document organization
+6. **Mathematical Typesetting**: Beautiful equation rendering
+7. **Multiple Output Formats**: HTML, PDF, slides, and more
+
+Quarkdown transforms simple Markdown into a powerful, programmable document system! 🎉
+
+---
+
+*Generated with Quarkdown v.version - The future of document creation*

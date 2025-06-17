@@ -1,0 +1,194 @@
+# 🚀 Quarkdown Comprehensive Example
+
+.var {title} {Quarkdown Comprehensive Example}
+.var {author} {VSCode Extension Demo}
+.var {date} {2025}
+
+.theme {darko} layout:{minimal}
+.doctype {article}
+
+## 📖 Introduction
+
+Welcome to **Quarkdown** - Markdown with superpowers! This example demonstrates all the powerful features available in the VSCode extension.
+
+## ⚡ Functions
+
+Define reusable functions with parameters:
+
+.function {greet} to from:
+**Hello, .to!** 👋 Welcome to Quarkdown.
+
+Best regards,  
+*.from*
+
+.function {highlight} text color:
+<span style="background-color: .color; padding: 2px 6px; border-radius: 3px;">.text</span>
+
+Now let's use them:
+
+.greet {Amazing Developer} {Quarkdown Team}
+
+.highlight {Important note} {yellow}
+
+## 📊 Variables
+
+Define and reference variables throughout your document:
+
+.var {project} {Quarkdown VSCode Extension}
+.var {version} {2.0.0}
+.var {features} {50+}
+
+**Project:** .project  
+**Version:** .version  
+**Features:** .features amazing features!
+
+## 🔄 Control Flow
+
+### Conditional Logic
+
+.var {showAdvanced} {true}
+.var {userLevel} {expert}
+
+.if {.showAdvanced}
+🎯 **Advanced Features Enabled** - You have access to all pro features!
+
+.ifnot {.showAdvanced}
+📚 Basic mode - Perfect for getting started!
+
+### Loops and Iteration
+
+.foreach {1..5} step:
+- Step .step: Building awesome Quarkdown documents
+
+.repeat {3} level:
+🌟 **Level .level completed!**
+
+## 📁 File Operations
+
+Quarkdown supports modular development:
+
+.include {lib/math-utils.qmd}
+
+*Note: The include above would load shared functions from a library file.*
+
+## 🧮 Mathematical Expressions
+
+Powerful math support with MathJax:
+
+Inline math: The famous equation is $E = mc^2$.
+
+Block equations:
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+Quarkdown math functions:
+- Sum: .sum {10} {20} {30} = 60
+- Power: .pow {2} {8} = 256
+- Pi constant: .pi ≈ 3.14159
+
+## 💻 Code Examples
+
+```javascript
+// Modern JavaScript with Quarkdown
+const quarkdown = {
+    features: ['functions', 'variables', 'loops', 'conditionals'],
+    awesome: true,
+    render: () => '🎉 Beautiful documents!'
+};
+
+console.log(quarkdown.render());
+```
+
+```python
+# Python example
+def quarkdown_power(level):
+    features = ['syntax highlighting', 'live preview', 'export options']
+    return f"Level {level}: {', '.join(features)}"
+
+print(quarkdown_power("Expert"))
+```
+
+## 📐 Layout Functions
+
+.row alignment:{center} gap:{20px}:
+  .column:
+    ### Left Column
+    Content for the left side.
+  
+  .column:
+    ### Right Column
+    Content for the right side.
+
+.center:
+🎯 **Centered Content**
+
+## 📋 Advanced Lists
+
+### Task Lists
+.foreach {["Setup VSCode", "Install Extension", "Create Project", "Write Content", "Export Document"]} task:
+- [x] .task
+
+### Numbered Features
+.repeat {5} num:
+.num. Feature number .num: Advanced capability
+
+## 🔗 Links and Emphasis
+
+Visit the [Quarkdown GitHub](https://github.com/quarkdown) for:
+- **Documentation** - Complete guides
+- *Examples* - Real-world use cases  
+- `Source Code` - Open source goodness
+
+## 📊 Tables with Data
+
+| Feature | Status | Description |
+|---------|--------|-----------|
+| Syntax Highlighting | ✅ | Rich color coding |
+| Auto-completion | ✅ | IntelliSense support |
+| Live Preview | ✅ | Real-time rendering |
+| Export Options | ✅ | PDF, HTML, Slides |
+| Project Templates | ✅ | Quick start options |
+
+## 🎨 Themes and Styling
+
+Quarkdown supports multiple themes:
+
+- **Default**: Clean and professional
+- **Darko**: Dark mode with vibrant colors  
+- **Academic**: Perfect for research papers
+
+Current theme: **.theme {darko} layout:{minimal}**
+
+## 🎯 Document Types
+
+Quarkdown can generate:
+
+.doctype {slides}: 🎞️ **Presentations** with reveal.js
+.doctype {book}: 📚 **Books** with chapters
+.doctype {article}: 📰 **Articles** for publications
+.doctype {paged}: 📄 **Print-ready** documents
+
+## 🚀 Getting Started
+
+1. **Install** the Quarkdown VSCode extension
+2. **Create** a new project with `Ctrl+Shift+P` → "Quarkdown: Create New Project"
+3. **Write** your content using Quarkdown syntax
+4. **Preview** with `Ctrl+Shift+V`
+5. **Export** to PDF or slides
+
+## 🎉 Conclusion
+
+Quarkdown transforms simple Markdown into a powerful document creation system. With functions, variables, control flow, and beautiful themes, you can create:
+
+- 📊 **Data-driven reports**
+- 🎓 **Academic papers** 
+- 📈 **Business presentations**
+- 📚 **Technical documentation**
+- 🎨 **Creative content**
+
+**Happy writing with Quarkdown!** ✨
+
+---
+
+*Generated with the Quarkdown VSCode Extension v.version*
