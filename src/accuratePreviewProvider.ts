@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { exec } from 'child_process';
+import * as cp from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execAsync = promisify(cp.exec);
 
 interface QuarkdownSettings {
     theme: string;
@@ -20,6 +20,7 @@ interface QuarkdownSettings {
 export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSerializer {
     private _panels = new Map<string, vscode.WebviewPanel>();
     private _watchers = new Map<string, fs.FSWatcher>();
+    private _processes = new Map<string, cp.ChildProcess>();
     private _currentSettings: QuarkdownSettings = {
         theme: '',
         layout: 'standard',
@@ -73,8 +74,11 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         );
 
         panel.onDidDispose(() => {
-            this._panels.delete(document.uri.toString());
-            this.stopWatching(document.uri.toString());
+            const uri = document.uri.toString();
+            this._panels.delete(uri);
+            this.stopWatching(uri);
+            this._processes.get(uri)?.kill();
+            this._processes.delete(uri);
         });
 
         if (this._currentSettings.enableWatch) {
@@ -91,8 +95,17 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         }
 
         try {
-            const html = await this.renderQuarkdown(document);
-            panel.webview.html = html;
+            // Try to use Quarkdown CLI with server mode first
+            try {
+                await execAsync('quarkdown --version');
+                this.startServer(document);
+            } catch (error) {
+                // Fallback to accurate internal rendering
+                const content = document.getText();
+                this.extractDocumentSettings(content);
+                const html = this.getAccurateQuarkdownHtml(content);
+                panel.webview.html = html;
+            }
         } catch (error) {
             panel.webview.html = this.getErrorHtml(error as Error);
         }
@@ -132,20 +145,57 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         };
     }
 
-    private async renderQuarkdown(document: vscode.TextDocument): Promise<string> {
-        const content = document.getText();
-        
-        // Extract document settings from content
-        this.extractDocumentSettings(content);
-        
-        // Try to use Quarkdown CLI first
-        try {
-            await execAsync('quarkdown --version');
-            return await this.renderWithCli(document, content);
-        } catch (error) {
-            // Fallback to accurate internal rendering
-            return this.getAccurateQuarkdownHtml(content);
+    private startServer(document: vscode.TextDocument) {
+        const uri = document.uri;
+        const panel = this._panels.get(uri.toString());
+        if (!panel) {
+            return;
         }
+
+        // 古いプロセスがあれば停止
+        this._processes.get(uri.toString())?.kill();
+
+        const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
+        const args = ['c', document.fileName, '-p', '-w'];
+        
+        console.log('🚀 Spawning process:', quarkdownPath, args.join(' '));
+
+        const process = cp.spawn(quarkdownPath, args, { cwd: path.dirname(document.fileName) });
+        this._processes.set(uri.toString(), process);
+
+        process.stdout?.on('data', (data: Buffer) => {
+            const output = data.toString();
+            console.log('Quarkdown stdout:', output);
+
+            // 正しいURLの行を検出するための正規表現
+            // "Responding at http://127.0.0.1:8089" のような行にマッチさせます
+            const urlMatch = output.match(/Responding at (http:\/\/(?:127\.0\.0\.1|localhost):\d+)/);
+
+            if (urlMatch && urlMatch[1]) {
+                // URLが取得できた場合のみ、WebviewのHTMLを更新する
+                const url = urlMatch[1];
+                console.log('🎉 URL Found:', url);
+                this.setPanelHtml(panel, url);
+            }
+        });
+
+        process.stderr?.on('data', (data: Buffer) => {
+            const errorMessage = data.toString();
+            console.error('Quarkdown stderr:', errorMessage);
+            if (!errorMessage.includes("Could not communicate with the server")) {
+                vscode.window.showErrorMessage(`Quarkdown Process Error: ${errorMessage}`);
+            }
+        });
+
+        process.on('error', (err) => {
+            console.error('Failed to start subprocess.', err);
+            vscode.window.showErrorMessage(`Failed to start Quarkdown process: ${err.message}`);
+        });
+
+        process.on('close', (code) => {
+            console.log(`Quarkdown process exited with code ${code}`);
+            this._processes.delete(uri.toString());
+        });
     }
 
     private extractDocumentSettings(content: string) {
@@ -180,21 +230,33 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         }
     }
 
-    private async renderWithCli(document: vscode.TextDocument, content: string): Promise<string> {
-        const tempFile = path.join(__dirname, 'temp.qmd');
-        fs.writeFileSync(tempFile, content);
-
-        try {
-            const { stdout } = await execAsync(`quarkdown "${tempFile}"`);
-            fs.unlinkSync(tempFile);
-            
-            return this.enhanceRenderedHtml(stdout);
-        } catch (error) {
-            if (fs.existsSync(tempFile)) {
-                fs.unlinkSync(tempFile);
-            }
-            throw error;
-        }
+    private setPanelHtml(panel: vscode.WebviewPanel, url: string) {
+        panel.webview.html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Quarkdown Preview</title>
+            <style>
+                body, html {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100vh;
+                    overflow: hidden;
+                }
+                iframe {
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                }
+            </style>
+        </head>
+        <body>
+            <iframe src="${url}" frameborder="0"></iframe>
+        </body>
+        </html>`;
     }
 
     private getAccurateQuarkdownHtml(content: string): string {
