@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as cp from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(cp.exec);
+const execAsync = promisify(exec);
 
 interface QuarkdownSettings {
     theme: string;
@@ -20,9 +20,14 @@ interface WebviewMessage {
     [key: string]: any;
 }
 
+interface ExecResult {
+    stdout: string;
+    stderr: string;
+}
+
 export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSerializer {
-    private _panels = new Map<string, vscode.WebviewPanel>();
-    private _watchers = new Map<string, fs.FSWatcher>();
+    private readonly _panels = new Map<string, vscode.WebviewPanel>();
+    private readonly _watchers = new Map<string, fs.FSWatcher>();
     private _currentSettings: QuarkdownSettings = {
         theme: 'darko',
         layout: 'minimal',
@@ -38,23 +43,30 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
     async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any): Promise<void> {
         webviewPanel.webview.options = this.getWebviewOptions();
         webviewPanel.webview.html = this.getLoadingHtml();
+        
+        // Restore settings if available
+        if (state?.settings) {
+            this._currentSettings = { ...this._currentSettings, ...state.settings };
+        }
     }
 
-    private loadSettings() {
-        const config = vscode.workspace.getConfiguration('quarkdown');
-        this._currentSettings = {
-            ...this._currentSettings,
-            theme: config.get('previewTheme', 'darko'),
-            layout: config.get('previewLayout', 'minimal'),
-            enableMath: config.get('enableMath', true),
-            enableWatch: config.get('enableAutoPreview', true)
-        };
+    private loadSettings(): void {
+        try {
+            const config = vscode.workspace.getConfiguration('quarkdown');
+            this._currentSettings = {
+                ...this._currentSettings,
+                theme: config.get('previewTheme', 'darko'),
+                layout: config.get('previewLayout', 'minimal'),
+                enableMath: config.get('enableMath', true),
+                enableWatch: config.get('enableAutoPreview', true)
+            };
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+        }
     }
 
-    public openPreview(document: vscode.TextDocument) {
-        const column = vscode.window.activeTextEditor 
-            ? vscode.window.activeTextEditor.viewColumn 
-            : undefined;
+    public openPreview(document: vscode.TextDocument): void {
+        const column = vscode.window.activeTextEditor?.viewColumn;
 
         const panel = vscode.window.createWebviewPanel(
             'quarkdownPreview',
@@ -65,38 +77,58 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
 
         this._panels.set(document.uri.toString(), panel);
 
-        panel.webview.onDidReceiveMessage((message: WebviewMessage) => {
-            switch (message.command) {
-                case 'settingsChanged':
-                    this._currentSettings = {...this._currentSettings, ...message.settings};
-                    this.saveSettings();
-                    this.updatePreview(document);
-                    break;
-                case 'exportPdf':
-                    this.exportToPdf(document);
-                    break;
-                case 'exportSlides':
-                    this.exportToSlides(document);
-                    break;
-                case 'openSettings':
-                    vscode.commands.executeCommand('workbench.action.openSettings', 'quarkdown.cliPath');
-                    break;
-            }
-        }, undefined);
+        // Setup message handling
+        this.setupMessageHandling(panel, document);
 
+        // Setup dispose handling
         panel.onDidDispose(() => {
-            this._panels.delete(document.uri.toString());
-            this.stopWatching(document.uri.toString());
+            this.cleanup(document.uri.toString());
         });
 
+        // Setup file watching
         if (this._currentSettings.enableWatch) {
             this.setupFileWatcher(document);
         }
 
+        // Initial preview update
         this.updatePreview(document);
     }
 
-    public async updatePreview(document: vscode.TextDocument) {
+    private setupMessageHandling(panel: vscode.WebviewPanel, document: vscode.TextDocument): void {
+        panel.webview.onDidReceiveMessage((message: WebviewMessage) => {
+            this.handleWebviewMessage(message, document);
+        }, undefined);
+    }
+
+    private async handleWebviewMessage(message: WebviewMessage, document: vscode.TextDocument): Promise<void> {
+        try {
+            switch (message.command) {
+                case 'settingsChanged':
+                    if (message.settings) {
+                        this._currentSettings = { ...this._currentSettings, ...message.settings };
+                        await this.saveSettings();
+                        await this.updatePreview(document);
+                    }
+                    break;
+                case 'exportPdf':
+                    await this.exportToPdf(document);
+                    break;
+                case 'exportSlides':
+                    await this.exportToSlides(document);
+                    break;
+                case 'openSettings':
+                    await vscode.commands.executeCommand('workbench.action.openSettings', 'quarkdown.cliPath');
+                    break;
+                default:
+                    console.warn(`Unknown message command: ${message.command}`);
+            }
+        } catch (error) {
+            console.error('Error handling webview message:', error);
+            vscode.window.showErrorMessage(`Failed to handle command: ${message.command}`);
+        }
+    }
+
+    public async updatePreview(document: vscode.TextDocument): Promise<void> {
         const panel = this._panels.get(document.uri.toString());
         if (!panel) {
             return;
@@ -112,44 +144,9 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 throw new Error(`Quarkdown CLI not found at path: "${configuredPath}". Please check your VS Code settings.`);
             }
 
-            const filePath = document.uri.fsPath;
-            const fileName = path.basename(filePath);
-            const fileDir = path.dirname(filePath);
-            
-            try {
-                console.log(`🚀 Compiling Quarkdown: "${fileName}"`);
-                
-                // Quarkdownコンパイル（標準出力にHTMLが出力される）
-                const { stdout, stderr } = await execAsync(
-                    `"${quarkdownPath}" c "${fileName}"`,
-                    { 
-                        cwd: fileDir, 
-                        timeout: 30000,
-                        env: { 
-                            ...process.env,
-                            JAVA_HOME: process.env.JAVA_HOME || ''
-                        }
-                    }
-                );
-
-                if (stderr) {
-                    console.warn('Quarkdown stderr:', stderr);
-                }
-
-                if (!stdout || stdout.trim().length === 0) {
-                    throw new Error('Quarkdown produced no output');
-                }
-
-                console.log(`✅ Quarkdown compilation successful (${stdout.length} characters)`);
-                
-                // HTMLコンテンツを拡張機能用に処理
-                const enhancedHtml = this.enhanceQuarkdownHtml(stdout);
-                panel.webview.html = enhancedHtml;
-
-            } catch (error: any) {
-                console.error('Quarkdown compilation failed:', error);
-                throw new Error(`Quarkdown compilation failed: ${error.message}`);
-            }
+            const htmlContent = await this.compileQuarkdown(document, quarkdownPath);
+            const enhancedHtml = this.enhanceQuarkdownHtml(htmlContent);
+            panel.webview.html = enhancedHtml;
 
         } catch (error) {
             console.error('Preview update failed:', error);
@@ -157,41 +154,59 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         }
     }
 
+    private async compileQuarkdown(document: vscode.TextDocument, quarkdownPath: string): Promise<string> {
+        const filePath = document.uri.fsPath;
+        const fileName = path.basename(filePath);
+        const fileDir = path.dirname(filePath);
+        
+        console.log(`🚀 Compiling Quarkdown: "${fileName}"`);
+        
+        try {
+            const result: ExecResult = await execAsync(
+                `"${quarkdownPath}" c "${fileName}"`,
+                { 
+                    cwd: fileDir, 
+                    timeout: 30000,
+                    env: { 
+                        ...process.env,
+                        JAVA_HOME: process.env.JAVA_HOME || ''
+                    }
+                }
+            );
+
+            if (result.stderr) {
+                console.warn('Quarkdown stderr:', result.stderr);
+            }
+
+            if (!result.stdout || result.stdout.trim().length === 0) {
+                throw new Error('Quarkdown produced no output');
+            }
+
+            console.log(`✅ Quarkdown compilation successful (${result.stdout.length} characters)`);
+            return result.stdout;
+
+        } catch (error: any) {
+            console.error('Quarkdown compilation failed:', error);
+            throw new Error(`Quarkdown compilation failed: ${error.message}`);
+        }
+    }
+
     private async findQuarkdownExecutable(basePath: string): Promise<string | null> {
         console.log(`🔍 Searching for Quarkdown executable: "${basePath}"`);
         
-        const extensions = ['', '.bat', '.cmd', '.exe'];
+        const extensions = process.platform === 'win32' ? ['', '.bat', '.cmd', '.exe'] : [''];
         
         for (const ext of extensions) {
             const testPath = basePath + ext;
             
-            if (path.isAbsolute(testPath)) {
-                const exists = fs.existsSync(testPath);
-                console.log(`📁 File exists "${testPath}": ${exists}`);
-                if (!exists) continue;
+            if (path.isAbsolute(testPath) && !fs.existsSync(testPath)) {
+                console.log(`📁 File not found: "${testPath}"`);
+                continue;
             }
             
-            try {
-                console.log(`🧪 Testing: "${testPath}"`);
-                
-                const execOptions: cp.ExecOptions = {
-                    timeout: 10000,
-                    env: { 
-                        ...process.env,
-                        JAVA_HOME: process.env.JAVA_HOME || ''
-                    },
-                    windowsHide: true
-                };
-                
-                // --help コマンドで存在確認
-                const result = await execAsync(`"${testPath}" --help`, execOptions);
-                
+            if (await this.testExecutable(testPath)) {
                 console.log(`✅ Found working Quarkdown: ${testPath}`);
                 return testPath;
-                
-            } catch (error: any) {
-                console.log(`❌ Failed: "${testPath}" - ${error.message}`);
-                continue;
             }
         }
         
@@ -199,28 +214,63 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         return null;
     }
 
-    private setupFileWatcher(document: vscode.TextDocument) {
+    private async testExecutable(executablePath: string): Promise<boolean> {
+        try {
+            console.log(`🧪 Testing: "${executablePath}"`);
+            
+            const execOptions = {
+                timeout: 10000,
+                env: { 
+                    ...process.env,
+                    JAVA_HOME: process.env.JAVA_HOME || ''
+                },
+                windowsHide: true
+            };
+            
+            await execAsync(`"${executablePath}" --help`, execOptions);
+            return true;
+            
+        } catch (error: any) {
+            console.log(`❌ Failed: "${executablePath}" - ${error.message}`);
+            return false;
+        }
+    }
+
+    private setupFileWatcher(document: vscode.TextDocument): void {
         const key = document.uri.toString();
         this.stopWatching(key);
         
         try {
-            const watcher = fs.watch(document.uri.fsPath, (eventType: fs.WatchEventType) => {
+            const watcher = fs.watch(document.uri.fsPath, (eventType: 'change' | 'rename') => {
                 if (eventType === 'change') {
-                    this.updatePreview(document);
+                    // Debounce the update to avoid excessive calls
+                    setTimeout(() => {
+                        this.updatePreview(document);
+                    }, 300);
                 }
             });
+            
             this._watchers.set(key, watcher);
         } catch (error) {
             console.error('Failed to setup file watcher:', error);
         }
     }
 
-    private stopWatching(key: string) {
+    private stopWatching(key: string): void {
         const watcher = this._watchers.get(key);
         if (watcher) {
-            watcher.close();
+            try {
+                watcher.close();
+            } catch (error) {
+                console.error('Error closing file watcher:', error);
+            }
             this._watchers.delete(key);
         }
+    }
+
+    private cleanup(documentKey: string): void {
+        this._panels.delete(documentKey);
+        this.stopWatching(documentKey);
     }
 
     private getWebviewOptions(): vscode.WebviewOptions {
@@ -247,25 +297,37 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             ${this._currentSettings.enableMath ? this.getMathJaxScript() : ''}
         </head>
         <body class="${themeClass} ${layoutClass}">
+            ${this.getPreviewControls()}
+            <div class="qmd-content">
+                ${htmlContent}
+            </div>
+            ${this.getPreviewScript()}
+        </body>
+        </html>`;
+    }
+
+    private getPreviewControls(): string {
+        return `
             <div class="qmd-preview-controls">
-                <select onchange="changeTheme(this.value)">
+                <select onchange="changeTheme(this.value)" aria-label="Select theme">
                     <option value="darko" ${this._currentSettings.theme === 'darko' ? 'selected' : ''}>Dark Theme</option>
                     <option value="" ${this._currentSettings.theme === '' ? 'selected' : ''}>Default Theme</option>
                     <option value="academic" ${this._currentSettings.theme === 'academic' ? 'selected' : ''}>Academic Theme</option>
                 </select>
-                <select onchange="changeLayout(this.value)">
+                <select onchange="changeLayout(this.value)" aria-label="Select layout">
                     <option value="minimal" ${this._currentSettings.layout === 'minimal' ? 'selected' : ''}>Minimal</option>
                     <option value="standard" ${this._currentSettings.layout === 'standard' ? 'selected' : ''}>Standard</option>
                     <option value="wide" ${this._currentSettings.layout === 'wide' ? 'selected' : ''}>Wide</option>
                     <option value="narrow" ${this._currentSettings.layout === 'narrow' ? 'selected' : ''}>Narrow</option>
                 </select>
-                <button onclick="exportPdf()">📄 Export PDF</button>
-                <button onclick="exportSlides()">🎞️ Export Slides</button>
+                <button onclick="exportPdf()" title="Export to PDF">📄 PDF</button>
+                <button onclick="exportSlides()" title="Export to Slides">🎞️ Slides</button>
             </div>
-            <div class="qmd-content">
-                ${htmlContent}
-            </div>
-            
+        `;
+    }
+
+    private getPreviewScript(): string {
+        return `
             <script>
                 const vscode = acquireVsCodeApi();
                 
@@ -296,9 +358,16 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 function exportSlides() {
                     vscode.postMessage({ command: 'exportSlides' });
                 }
+                
+                // Save state
+                vscode.setState({
+                    settings: {
+                        theme: '${this._currentSettings.theme}',
+                        layout: '${this._currentSettings.layout}'
+                    }
+                });
             </script>
-        </body>
-        </html>`;
+        `;
     }
 
     private getQuarkdownCSS(): string {
@@ -309,6 +378,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 --qmd-text: #1f2937;
                 --qmd-border: #e5e7eb;
                 --qmd-code-bg: #f3f4f6;
+                --qmd-shadow: rgba(0, 0, 0, 0.1);
             }
 
             .qmd-theme-darko {
@@ -316,6 +386,15 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 --qmd-text: #e2e8f0;
                 --qmd-border: #334155;
                 --qmd-code-bg: #1e293b;
+                --qmd-shadow: rgba(0, 0, 0, 0.3);
+            }
+
+            .qmd-theme-academic {
+                --qmd-bg: #fafafa;
+                --qmd-text: #212121;
+                --qmd-border: #e0e0e0;
+                --qmd-code-bg: #f5f5f5;
+                --qmd-shadow: rgba(0, 0, 0, 0.08);
             }
 
             .qmd-layout-minimal { max-width: 800px; margin: 0 auto; padding: 2rem; }
@@ -344,15 +423,30 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 display: flex;
                 gap: 10px;
                 z-index: 1000;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 8px var(--qmd-shadow);
+            }
+
+            .qmd-preview-controls select,
+            .qmd-preview-controls button {
+                background: var(--qmd-bg);
+                color: var(--qmd-text);
+                border: 1px solid var(--qmd-border);
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+
+            .qmd-preview-controls button:hover {
+                background-color: var(--qmd-border);
+                cursor: pointer;
             }
 
             .qmd-content {
                 margin-top: 60px;
             }
 
-            /* Enhanced styles for Quarkdown content */
-            .qmd-content h1, .qmd-content h2, .qmd-content h3, .qmd-content h4, .qmd-content h5, .qmd-content h6 {
+            .qmd-content h1, .qmd-content h2, .qmd-content h3, 
+            .qmd-content h4, .qmd-content h5, .qmd-content h6 {
                 margin-top: 2em;
                 margin-bottom: 0.8em;
                 font-weight: 600;
@@ -363,6 +457,12 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 font-size: 2.25em; 
                 border-bottom: 2px solid var(--qmd-border);
                 padding-bottom: 0.5em;
+            }
+
+            .qmd-content h2 {
+                font-size: 1.8em;
+                border-bottom: 1px solid var(--qmd-border);
+                padding-bottom: 0.3em;
             }
 
             .qmd-content code {
@@ -392,7 +492,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 max-width: 100%;
                 height: auto;
                 border-radius: 0.5rem;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 4px 6px var(--qmd-shadow);
             }
 
             .qmd-content figure {
@@ -418,8 +518,39 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 margin: 0.5rem 0;
             }
 
+            .qmd-content table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 1.5rem 0;
+            }
+
+            .qmd-content th, .qmd-content td {
+                border: 1px solid var(--qmd-border);
+                padding: 0.5rem 1rem;
+                text-align: left;
+            }
+
+            .qmd-content th {
+                background-color: var(--qmd-code-bg);
+                font-weight: 600;
+            }
+
             .page-break {
                 display: none;
+            }
+
+            @media (max-width: 768px) {
+                .qmd-preview-controls {
+                    position: relative;
+                    top: auto;
+                    right: auto;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+                
+                .qmd-content {
+                    margin-top: 0;
+                }
             }
         `;
     }
@@ -438,6 +569,12 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                     },
                     options: {
                         skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                    },
+                    startup: {
+                        ready: () => {
+                            MathJax.startup.defaultReady();
+                            document.dispatchEvent(new Event('mathjax-ready'));
+                        }
                     }
                 };
             </script>
@@ -495,6 +632,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
 
     private getErrorHtml(error: Error): string {
         const isWindows = process.platform === 'win32';
+        const configuredPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
         
         return `
         <!DOCTYPE html>
@@ -538,6 +676,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                     font-family: monospace;
                     border-left: 4px solid #ef4444;
                     font-weight: 500;
+                    word-break: break-word;
                 }
                 .help-section {
                     background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
@@ -585,27 +724,49 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                     margin: 0.75rem 0;
                     overflow-x: auto;
                 }
+                .current-config {
+                    background-color: #fef3c7;
+                    border: 1px solid #f59e0b;
+                    border-radius: 0.5rem;
+                    padding: 1rem;
+                    margin: 0.75rem 0;
+                }
             </style>
         </head>
         <body>
             <div class="error-container">
                 <h2 class="error-title">⚠️ Quarkdown Error</h2>
-                <div class="error-message">${error.message.replace(/\n/g, '<br>')}</div>
+                <div class="error-message">${this.escapeHtml(error.message)}</div>
             </div>
 
             <div class="help-section">
-                <h3 class="help-title">🔧 Quick Fix</h3>
-                <p><strong>Step 1:</strong> Open VS Code Settings (<code>Ctrl+,</code>)</p>
+                <h3 class="help-title">🔧 Current Configuration</h3>
+                <div class="current-config">
+                    <strong>CLI Path:</strong> <code>${this.escapeHtml(configuredPath)}</code>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3 class="help-title">🛠️ Quick Fix</h3>
+                <p><strong>Step 1:</strong> Open VS Code Settings (<code>Ctrl+,</code> or <code>Cmd+,</code>)</p>
                 <p><strong>Step 2:</strong> Search for <code>quarkdown.cliPath</code></p>
                 <p><strong>Step 3:</strong> Set the correct path:</p>
-                <pre class="config-example">C:\\Users\\chiba\\Project\\quarkdown\\bin\\quarkdown.bat</pre>
+                ${isWindows ? `
+                <pre class="config-example">C:\\Users\\[username]\\Project\\quarkdown\\bin\\quarkdown.bat</pre>
+                <p><strong>Find your path with PowerShell:</strong></p>
+                <pre class="config-example">Get-Command quarkdown | Select-Object Source</pre>
+                ` : `
+                <pre class="config-example">/usr/local/bin/quarkdown</pre>
+                <p><strong>Find your path with terminal:</strong></p>
+                <pre class="config-example">which quarkdown</pre>
+                `}
                 <button onclick="openSettings()" class="settings-button">🛠️ Open Settings</button>
             </div>
 
             <div class="help-section">
                 <h3 class="help-title">✅ Verification</h3>
-                <p>Test Quarkdown manually in PowerShell:</p>
-                <pre class="config-example">& "C:\\Users\\chiba\\Project\\quarkdown\\bin\\quarkdown.bat" --help</pre>
+                <p>Test Quarkdown manually in ${isWindows ? 'PowerShell' : 'terminal'}:</p>
+                <pre class="config-example">${isWindows ? '& ' : ''}"${this.escapeHtml(configuredPath)}" --help</pre>
                 <p>If this works, the VS Code setting should also work.</p>
             </div>
             
@@ -619,25 +780,61 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         </html>`;
     }
 
-    private saveSettings() {
-        vscode.workspace.getConfiguration('quarkdown').update('previewSettings', this._currentSettings, true);
+    private escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
-    private async exportToPdf(document: vscode.TextDocument) {
+    private async saveSettings(): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('quarkdown');
+            await config.update('previewSettings', this._currentSettings, vscode.ConfigurationTarget.Workspace);
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+        }
+    }
+
+    private async exportToPdf(document: vscode.TextDocument): Promise<void> {
         try {
             const { exportToPdf } = await import('./exportUtils');
-            exportToPdf(document);
+            await exportToPdf(document);
         } catch (error) {
+            console.error('PDF export failed:', error);
             vscode.window.showErrorMessage('PDF export not available');
         }
     }
 
-    private async exportToSlides(document: vscode.TextDocument) {
+    private async exportToSlides(document: vscode.TextDocument): Promise<void> {
         try {
             const { exportToSlides } = await import('./exportUtils');
-            exportToSlides(document);
+            await exportToSlides(document);
         } catch (error) {
+            console.error('Slides export failed:', error);
             vscode.window.showErrorMessage('Slides export not available');
         }
+    }
+
+    // Public method for cleaning up resources
+    public dispose(): void {
+        // Close all file watchers
+        for (const [key, watcher] of this._watchers) {
+            try {
+                watcher.close();
+            } catch (error) {
+                console.error(`Error closing watcher for ${key}:`, error);
+            }
+        }
+        this._watchers.clear();
+        
+        // Close all panels
+        for (const [key, panel] of this._panels) {
+            try {
+                panel.dispose();
+            } catch (error) {
+                console.error(`Error disposing panel for ${key}:`, error);
+            }
+        }
+        this._panels.clear();
     }
 }
