@@ -2,7 +2,7 @@
   "name": "quarkdown-vscode",
   "displayName": "Quarkdown",
   "description": "Comprehensive Quarkdown support for Visual Studio Code with advanced syntax highlighting, live preview, and project management",
-  "version": "1.0.0",
+  "version": "0.1.2",
   "publisher": "quarkdown",
   "engines": {
     "vscode": "^1.74.0"
@@ -23,7 +23,10 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:quarkdown"
+    "onLanguage:quarkdown",
+    "onCommand:quarkdown.preview",
+    "onCommand:quarkdown.exportPdf",
+    "onCommand:quarkdown.exportSlides"
   ],
   "contributes": {
     "languages": [
@@ -263,5 +266,15 @@
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quarkdown/quarkdown-vscode-extension.git"
+  },
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  }
 }

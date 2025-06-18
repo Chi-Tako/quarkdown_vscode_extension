@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 interface QuarkdownSettings {
     theme: string;
@@ -28,7 +29,9 @@ interface ExecResult {
 export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSerializer {
     private readonly _panels = new Map<string, vscode.WebviewPanel>();
     private readonly _watchers = new Map<string, fs.FSWatcher>();
-    private _currentSettings: QuarkdownSettings = {
+    private readonly _documentSettings = new Map<string, QuarkdownSettings>();
+    private readonly _debounceTimers = new Map<string, NodeJS.Timeout>();
+    private _defaultSettings: QuarkdownSettings = {
         theme: 'darko',
         layout: 'minimal',
         enableMath: true,
@@ -37,7 +40,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
     };
 
     constructor(private readonly _extensionUri: vscode.Uri) {
-        this.loadSettings();
+        this.loadDefaultSettings();
     }
 
     async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any): Promise<void> {
@@ -45,24 +48,67 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         webviewPanel.webview.html = this.getLoadingHtml();
         
         // Restore settings if available
-        if (state?.settings) {
-            this._currentSettings = { ...this._currentSettings, ...state.settings };
+        if (state?.settings && state?.documentUri) {
+            this.updateDocumentSettings(state.documentUri, state.settings);
+        }
+        
+        // Restore preview content if document URI is available
+        if (state?.documentUri) {
+            try {
+                const documentUri = vscode.Uri.parse(state.documentUri);
+                const document = await vscode.workspace.openTextDocument(documentUri);
+                
+                // Register the panel
+                this._panels.set(state.documentUri, webviewPanel);
+                
+                // Setup message handling
+                this.setupMessageHandling(webviewPanel, document);
+                
+                // Setup cleanup on disposal
+                webviewPanel.onDidDispose(() => {
+                    this.cleanup(state.documentUri);
+                });
+                
+                // Update preview content
+                this.updatePreview(document);
+                
+                // Setup file watching if enabled
+                const settings = this.getDocumentSettings(state.documentUri);
+                if (settings.enableWatch) {
+                    this.setupFileWatcher(document);
+                }
+            } catch (error) {
+                console.error('Failed to restore preview content:', error);
+                webviewPanel.webview.html = this.getErrorHtml(error as Error);
+            }
         }
     }
 
-    private loadSettings(): void {
+    private loadDefaultSettings(): void {
         try {
             const config = vscode.workspace.getConfiguration('quarkdown');
-            this._currentSettings = {
-                ...this._currentSettings,
+            this._defaultSettings = {
+                ...this._defaultSettings,
                 theme: config.get('previewTheme', 'darko'),
                 layout: config.get('previewLayout', 'minimal'),
                 enableMath: config.get('enableMath', true),
                 enableWatch: config.get('enableAutoPreview', true)
             };
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            console.error('Failed to load default settings:', error);
         }
+    }
+
+    private getDocumentSettings(documentUri: string): QuarkdownSettings {
+        if (!this._documentSettings.has(documentUri)) {
+            this._documentSettings.set(documentUri, { ...this._defaultSettings });
+        }
+        return this._documentSettings.get(documentUri)!;
+    }
+
+    private updateDocumentSettings(documentUri: string, settings: Partial<QuarkdownSettings>): void {
+        const currentSettings = this.getDocumentSettings(documentUri);
+        this._documentSettings.set(documentUri, { ...currentSettings, ...settings });
     }
 
     public openPreview(document: vscode.TextDocument): void {
@@ -86,7 +132,8 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         });
 
         // Setup file watching
-        if (this._currentSettings.enableWatch) {
+        const settings = this.getDocumentSettings(document.uri.toString());
+        if (settings.enableWatch) {
             this.setupFileWatcher(document);
         }
 
@@ -105,8 +152,8 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             switch (message.command) {
                 case 'settingsChanged':
                     if (message.settings) {
-                        this._currentSettings = { ...this._currentSettings, ...message.settings };
-                        await this.saveSettings();
+                        this.updateDocumentSettings(document.uri.toString(), message.settings);
+                        await this.saveDocumentSettings(document.uri.toString());
                         await this.updatePreview(document);
                     }
                     break;
@@ -145,7 +192,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             }
 
             const htmlContent = await this.compileQuarkdown(document, quarkdownPath);
-            const enhancedHtml = this.enhanceQuarkdownHtml(htmlContent);
+            const enhancedHtml = this.enhanceQuarkdownHtml(htmlContent, document.uri.toString());
             panel.webview.html = enhancedHtml;
 
         } catch (error) {
@@ -162,8 +209,9 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         console.log(`🚀 Compiling Quarkdown: "${fileName}"`);
         
         try {
-            const result: ExecResult = await execAsync(
-                `"${quarkdownPath}" c "${fileName}"`,
+            const result: ExecResult = await execFileAsync(
+                quarkdownPath,
+                ['c', fileName],
                 { 
                     cwd: fileDir, 
                     timeout: 30000,
@@ -243,10 +291,19 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         try {
             const watcher = fs.watch(document.uri.fsPath, (eventType: 'change' | 'rename') => {
                 if (eventType === 'change') {
-                    // Debounce the update to avoid excessive calls
-                    setTimeout(() => {
+                    // Clear existing debounce timer
+                    const existingTimer = this._debounceTimers.get(key);
+                    if (existingTimer) {
+                        clearTimeout(existingTimer);
+                    }
+                    
+                    // Set new debounce timer
+                    const timer = setTimeout(() => {
                         this.updatePreview(document);
+                        this._debounceTimers.delete(key);
                     }, 300);
+                    
+                    this._debounceTimers.set(key, timer);
                 }
             });
             
@@ -266,11 +323,53 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             }
             this._watchers.delete(key);
         }
+        
+        // Clear any pending debounce timer
+        const timer = this._debounceTimers.get(key);
+        if (timer) {
+            clearTimeout(timer);
+            this._debounceTimers.delete(key);
+        }
     }
 
     private cleanup(documentKey: string): void {
         this._panels.delete(documentKey);
         this.stopWatching(documentKey);
+    }
+
+    public dispose(): void {
+        // Cleanup all panels
+        for (const [key, panel] of this._panels) {
+            try {
+                panel.dispose();
+            } catch (error) {
+                console.error(`Error disposing panel ${key}:`, error);
+            }
+        }
+        this._panels.clear();
+
+        // Cleanup all watchers
+        for (const [key, watcher] of this._watchers) {
+            try {
+                watcher.close();
+            } catch (error) {
+                console.error(`Error closing watcher ${key}:`, error);
+            }
+        }
+        this._watchers.clear();
+
+        // Clear all debounce timers
+        for (const [key, timer] of this._debounceTimers) {
+            try {
+                clearTimeout(timer);
+            } catch (error) {
+                console.error(`Error clearing timer ${key}:`, error);
+            }
+        }
+        this._debounceTimers.clear();
+
+        // Clear document settings
+        this._documentSettings.clear();
     }
 
     private getWebviewOptions(): vscode.WebviewOptions {
@@ -280,9 +379,10 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         };
     }
 
-    private enhanceQuarkdownHtml(htmlContent: string): string {
-        const themeClass = this._currentSettings.theme ? `qmd-theme-${this._currentSettings.theme}` : '';
-        const layoutClass = `qmd-layout-${this._currentSettings.layout}`;
+    private enhanceQuarkdownHtml(htmlContent: string, documentUri: string): string {
+        const settings = this.getDocumentSettings(documentUri);
+        const themeClass = settings.theme ? `qmd-theme-${settings.theme}` : '';
+        const layoutClass = `qmd-layout-${settings.layout}`;
 
         return `
         <!DOCTYPE html>
@@ -294,31 +394,31 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             <style>
                 ${this.getQuarkdownCSS()}
             </style>
-            ${this._currentSettings.enableMath ? this.getMathJaxScript() : ''}
+            ${settings.enableMath ? this.getMathJaxScript() : ''}
         </head>
         <body class="${themeClass} ${layoutClass}">
-            ${this.getPreviewControls()}
+            ${this.getPreviewControls(settings)}
             <div class="qmd-content">
                 ${htmlContent}
             </div>
-            ${this.getPreviewScript()}
+            ${this.getPreviewScript(settings)}
         </body>
         </html>`;
     }
 
-    private getPreviewControls(): string {
+    private getPreviewControls(settings: QuarkdownSettings): string {
         return `
             <div class="qmd-preview-controls">
                 <select onchange="changeTheme(this.value)" aria-label="Select theme">
-                    <option value="darko" ${this._currentSettings.theme === 'darko' ? 'selected' : ''}>Dark Theme</option>
-                    <option value="" ${this._currentSettings.theme === '' ? 'selected' : ''}>Default Theme</option>
-                    <option value="academic" ${this._currentSettings.theme === 'academic' ? 'selected' : ''}>Academic Theme</option>
+                    <option value="darko" ${settings.theme === 'darko' ? 'selected' : ''}>Dark Theme</option>
+                    <option value="" ${settings.theme === '' ? 'selected' : ''}>Default Theme</option>
+                    <option value="academic" ${settings.theme === 'academic' ? 'selected' : ''}>Academic Theme</option>
                 </select>
                 <select onchange="changeLayout(this.value)" aria-label="Select layout">
-                    <option value="minimal" ${this._currentSettings.layout === 'minimal' ? 'selected' : ''}>Minimal</option>
-                    <option value="standard" ${this._currentSettings.layout === 'standard' ? 'selected' : ''}>Standard</option>
-                    <option value="wide" ${this._currentSettings.layout === 'wide' ? 'selected' : ''}>Wide</option>
-                    <option value="narrow" ${this._currentSettings.layout === 'narrow' ? 'selected' : ''}>Narrow</option>
+                    <option value="minimal" ${settings.layout === 'minimal' ? 'selected' : ''}>Minimal</option>
+                    <option value="standard" ${settings.layout === 'standard' ? 'selected' : ''}>Standard</option>
+                    <option value="wide" ${settings.layout === 'wide' ? 'selected' : ''}>Wide</option>
+                    <option value="narrow" ${settings.layout === 'narrow' ? 'selected' : ''}>Narrow</option>
                 </select>
                 <button onclick="exportPdf()" title="Export to PDF">📄 PDF</button>
                 <button onclick="exportSlides()" title="Export to Slides">🎞️ Slides</button>
@@ -326,7 +426,7 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
         `;
     }
 
-    private getPreviewScript(): string {
+    private getPreviewScript(settings: QuarkdownSettings): string {
         return `
             <script>
                 const vscode = acquireVsCodeApi();
@@ -362,8 +462,8 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
                 // Save state
                 vscode.setState({
                     settings: {
-                        theme: '${this._currentSettings.theme}',
-                        layout: '${this._currentSettings.layout}'
+                        theme: '${settings.theme}',
+                        layout: '${settings.layout}'
                     }
                 });
             </script>
@@ -781,15 +881,25 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
     }
 
     private escapeHtml(text: string): string {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        if (typeof text !== 'string') {
+            return '';
+        }
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
-    private async saveSettings(): Promise<void> {
+    private async saveDocumentSettings(documentUri: string): Promise<void> {
         try {
+            const settings = this.getDocumentSettings(documentUri);
             const config = vscode.workspace.getConfiguration('quarkdown');
-            await config.update('previewSettings', this._currentSettings, vscode.ConfigurationTarget.Workspace);
+            await config.update('previewTheme', settings.theme, vscode.ConfigurationTarget.Workspace);
+            await config.update('previewLayout', settings.layout, vscode.ConfigurationTarget.Workspace);
+            await config.update('enableMath', settings.enableMath, vscode.ConfigurationTarget.Workspace);
+            await config.update('enableAutoPreview', settings.enableWatch, vscode.ConfigurationTarget.Workspace);
         } catch (error) {
             console.error('Failed to save settings:', error);
         }

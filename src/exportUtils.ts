@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export async function exportToPdf(document: vscode.TextDocument): Promise<void> {
     try {
@@ -21,11 +22,12 @@ export async function exportToPdf(document: vscode.TextDocument): Promise<void> 
             progress.report({ increment: 0, message: 'Starting PDF export...' });
             
             try {
-                // 正しいQuarkdown CLIコマンド構文
-                const command = `quarkdown c "${inputPath}" --pdf -o "${path.join(outputDir, 'output')}"`;
-                console.log(`Executing: ${command}`);
+                // Secure command execution using execFile
+                const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
+                const outputPath = path.join(outputDir, 'output');
+                console.log(`Executing: ${quarkdownPath} c "${inputPath}" --pdf -o "${outputPath}"`);
                 
-                const { stdout, stderr } = await execAsync(command);
+                const { stdout, stderr } = await execFileAsync(quarkdownPath, ['c', inputPath, '--pdf', '-o', outputPath]);
                 
                 if (stderr && !stderr.includes('INFO')) {
                     console.warn('Quarkdown stderr:', stderr);
@@ -96,10 +98,11 @@ export async function exportToSlides(document: vscode.TextDocument): Promise<voi
                     }
                 }
                 
-                const command = `quarkdown c "${inputPath}" -o "${path.join(outputDir, 'output')}"`;
-                console.log(`Executing: ${command}`);
+                const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
+                const outputPath = path.join(outputDir, 'output');
+                console.log(`Executing: ${quarkdownPath} c "${inputPath}" -o "${outputPath}"`);
                 
-                const { stdout, stderr } = await execAsync(command);
+                const { stdout, stderr } = await execFileAsync(quarkdownPath, ['c', inputPath, '-o', outputPath]);
                 
                 if (stderr && !stderr.includes('INFO')) {
                     console.warn('Quarkdown stderr:', stderr);
@@ -132,7 +135,8 @@ export async function exportToSlides(document: vscode.TextDocument): Promise<voi
 
 export async function isQuarkdownAvailable(): Promise<boolean> {
     try {
-        const { stdout } = await execAsync('quarkdown --help');
+        const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
+        const { stdout } = await execFileAsync(quarkdownPath, ['--help']);
         return stdout.includes('Quarkdown');
     } catch {
         return false;
@@ -155,7 +159,8 @@ export async function checkQuarkdownInstallation(): Promise<void> {
         }
     } else {
         try {
-            const { stdout } = await execAsync('quarkdown --help');
+            const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
+            const { stdout } = await execFileAsync(quarkdownPath, ['--help']);
             vscode.window.showInformationMessage(`Quarkdown CLI is properly installed!`);
         } catch (error) {
             vscode.window.showWarningMessage(`Quarkdown CLI found but may have issues: ${(error as Error).message}`);

@@ -10,7 +10,7 @@ export class QuarkdownCompletionProvider implements vscode.CompletionItemProvide
         context: vscode.CompletionContext
     ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
         
-        const linePrefix = document.lineAt(position).text.substr(0, position.character);
+        const linePrefix = document.lineAt(position).text.substring(0, position.character);
         
         // Check if we're in a function call context
         if (linePrefix.endsWith('.')) {

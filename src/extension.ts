@@ -6,11 +6,14 @@ import { QuarkdownDocumentSymbolProvider, QuarkdownWorkspaceSymbolProvider } fro
 import { getProjectCommands } from './projectUtils';
 import { exportToPdf, exportToSlides } from './exportUtils';
 
+let previewProvider: AccurateQuarkdownPreviewProvider | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('🚀 Quarkdown extension is now active!');
 
-    // Register the accurate preview provider
-    const previewProvider = new AccurateQuarkdownPreviewProvider(context.extensionUri);
+    try {
+        // Register the accurate preview provider
+        previewProvider = new AccurateQuarkdownPreviewProvider(context.extensionUri);
     
     context.subscriptions.push(
         vscode.window.registerWebviewPanelSerializer('quarkdownPreview', previewProvider)
@@ -236,8 +239,23 @@ export function activate(context: vscode.ExtensionContext) {
             }, 1000); // 1秒後に表示
         }
     }
+    } catch (error) {
+        console.error('Failed to activate Quarkdown extension:', error);
+        vscode.window.showErrorMessage(`Failed to activate Quarkdown extension: ${error}`);
+    }
 }
+
 
 export function deactivate() {
     console.log('👋 Quarkdown extension is now deactivated.');
+    
+    try {
+        // Cleanup preview provider resources
+        if (previewProvider) {
+            previewProvider.dispose();
+            previewProvider = undefined;
+        }
+    } catch (error) {
+        console.error('Error during extension deactivation:', error);
+    }
 }
