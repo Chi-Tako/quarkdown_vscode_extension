@@ -1,18 +1,51 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivate = exports.activate = void 0;
-const vscode = require("vscode");
+exports.activate = activate;
+exports.deactivate = deactivate;
+const vscode = __importStar(require("vscode"));
 const accuratePreviewProvider_1 = require("./accuratePreviewProvider");
 const completionProvider_1 = require("./completionProvider");
 const definitionProvider_1 = require("./definitionProvider");
 const documentSymbolProvider_1 = require("./documentSymbolProvider");
+const projectUtils_1 = require("./projectUtils");
 const exportUtils_1 = require("./exportUtils");
 function activate(context) {
     console.log('🚀 Quarkdown extension is now active!');
-    // 拡張機能のアクティベーション時にQuarkdownのインストール状況をチェック
-    (0, exportUtils_1.checkQuarkdownInstallation)();
-    // Register the improved preview provider
-    const previewProvider = new accuratePreviewProvider_1.ImprovedQuarkdownPreviewProvider(context.extensionUri);
+    // Register the accurate preview provider
+    const previewProvider = new accuratePreviewProvider_1.AccurateQuarkdownPreviewProvider(context.extensionUri);
     context.subscriptions.push(vscode.window.registerWebviewPanelSerializer('quarkdownPreview', previewProvider));
     // Register language features
     const quarkdownSelector = { language: 'quarkdown', scheme: 'file' };
@@ -26,8 +59,7 @@ function activate(context) {
     // Document symbol providers
     context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(quarkdownSelector, new documentSymbolProvider_1.QuarkdownDocumentSymbolProvider()));
     context.subscriptions.push(vscode.languages.registerWorkspaceSymbolProvider(new documentSymbolProvider_1.QuarkdownWorkspaceSymbolProvider()));
-    // Register commands
-    // Preview command
+    // Register preview and export commands
     context.subscriptions.push(vscode.commands.registerCommand('quarkdown.preview', () => {
         const activeEditor = vscode.window.activeTextEditor;
         if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
@@ -37,7 +69,6 @@ function activate(context) {
             vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
         }
     }));
-    // Export commands
     context.subscriptions.push(vscode.commands.registerCommand('quarkdown.exportPdf', async () => {
         const activeEditor = vscode.window.activeTextEditor;
         if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
@@ -56,51 +87,9 @@ function activate(context) {
             vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
         }
     }));
-    // Project creation command
-    context.subscriptions.push(vscode.commands.registerCommand('quarkdown.createProject', async () => {
-        try {
-            // projectUtilsを動的にimportして適切に引数を渡す
-            const projectUtils = await Promise.resolve().then(() => require('./projectUtils'));
-            const projectName = await vscode.window.showInputBox({
-                prompt: 'Enter project name',
-                placeHolder: 'my-quarkdown-project',
-                validateInput: (value) => {
-                    if (!value || value.trim().length === 0) {
-                        return 'Project name cannot be empty';
-                    }
-                    if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-                        return 'Project name can only contain letters, numbers, hyphens, and underscores';
-                    }
-                    return undefined;
-                }
-            });
-            if (!projectName) {
-                return;
-            }
-            // ProjectTemplate型に合わせた選択肢を提供
-            const projectTypeOptions = [
-                { label: 'Article', value: 'article' },
-                { label: 'Book', value: 'book' },
-                { label: 'Presentation', value: 'presentation' },
-                { label: 'Basic', value: 'basic' }
-            ];
-            const selectedType = await vscode.window.showQuickPick(projectTypeOptions, {
-                placeHolder: 'Select project type',
-                ignoreFocusOut: true
-            });
-            if (!selectedType) {
-                return;
-            }
-            // createProject関数を呼び出し（動的importで型エラーを回避）
-            await projectUtils.createProject(projectName, selectedType.value);
-            vscode.window.showInformationMessage(`Project "${projectName}" created successfully!`);
-        }
-        catch (error) {
-            console.error('Error creating project:', error);
-            vscode.window.showErrorMessage(`Failed to create project: ${error.message}`);
-        }
-    }));
-    // Utility commands for adding content
+    // Register project commands
+    context.subscriptions.push(...(0, projectUtils_1.getProjectCommands)());
+    // Register additional utility commands
     context.subscriptions.push(vscode.commands.registerCommand('quarkdown.insertFunction', async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor || editor.document.languageId !== 'quarkdown') {
@@ -123,14 +112,13 @@ function activate(context) {
             return;
         }
         const parameters = await vscode.window.showInputBox({
-            prompt: 'Enter parameters (space-separated, optional)',
+            prompt: 'Enter function parameters (optional)',
             placeHolder: 'param1 param2'
         });
         const functionText = `.function {${functionName}}${parameters ? ` ${parameters}:` : ':'}
-    # Function body here
     
 `;
-        editor.edit((editBuilder) => {
+        editor.edit(editBuilder => {
             editBuilder.insert(editor.selection.active, functionText);
         });
     }));
@@ -164,89 +152,45 @@ function activate(context) {
         }
         const variableText = `.var {${varName}} {${varValue}}
 `;
-        editor.edit((editBuilder) => {
+        editor.edit(editBuilder => {
             editBuilder.insert(editor.selection.active, variableText);
         });
     }));
-    // 診断コマンド
-    context.subscriptions.push(vscode.commands.registerCommand('quarkdown.checkInstallation', async () => {
-        await (0, exportUtils_1.checkQuarkdownInstallation)();
+    // 新しいコマンドを登録
+    context.subscriptions.push(vscode.commands.registerCommand('quarkdown.openSettings', () => {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'quarkdown');
     }));
-    // Auto-refresh preview when document changes
-    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.languageId === 'quarkdown') {
-            // デバウンス処理（1秒後に更新）
-            if (global.quarkdownUpdateTimeout) {
-                clearTimeout(global.quarkdownUpdateTimeout);
-            }
-            global.quarkdownUpdateTimeout = setTimeout(() => {
-                previewProvider.updatePreview(event.document);
-            }, 1000);
-        }
-    }));
-    // Auto-save before export
-    context.subscriptions.push(vscode.workspace.onWillSaveTextDocument((event) => {
-        if (event.document.languageId === 'quarkdown') {
-            // 保存前にドキュメントが変更されている場合、プレビューを更新
-            const timeout = new Promise((resolve) => {
-                setTimeout(() => {
-                    previewProvider.updatePreview(event.document);
-                    resolve();
-                }, 100);
-            });
-            event.waitUntil(timeout);
-        }
-    }));
-    // Show welcome message for first-time users
-    const config = vscode.workspace.getConfiguration('quarkdown');
-    if (!config.get('hasShownWelcome')) {
-        vscode.window.showInformationMessage('Welcome to Quarkdown! 🎉 Create your first project or open a .qmd file to get started.', 'Create Project', 'Open Sample', 'Check Installation').then(async (choice) => {
-            if (choice === 'Create Project') {
-                await vscode.commands.executeCommand('quarkdown.createProject');
-            }
-            else if (choice === 'Open Sample') {
-                // Open the example file
-                const examplePath = vscode.Uri.joinPath(context.extensionUri, 'example.qmd');
-                try {
-                    const doc = await vscode.workspace.openTextDocument(examplePath);
-                    await vscode.window.showTextDocument(doc);
-                }
-                catch (error) {
-                    vscode.window.showWarningMessage('Example file not found. Try creating a new project instead.');
-                }
-            }
-            else if (choice === 'Check Installation') {
-                await vscode.commands.executeCommand('quarkdown.checkInstallation');
+    context.subscriptions.push(vscode.commands.registerCommand('quarkdown.showWelcome', () => {
+        const isWindows = process.platform === 'win32';
+        const message = isWindows
+            ? 'Welcome to Quarkdown! Windows users may need to configure the CLI path in settings. Would you like to open the settings now?'
+            : 'Welcome to Quarkdown! The extension should work automatically if Quarkdown CLI is installed.';
+        const action = isWindows ? 'Open Settings' : 'OK';
+        vscode.window.showInformationMessage(message, action, 'Dismiss').then((selection) => {
+            if (selection === 'Open Settings') {
+                vscode.commands.executeCommand('workbench.action.openSettings', 'quarkdown.cliPath');
             }
         });
-        config.update('hasShownWelcome', true, true);
+    }));
+    // Auto-refresh preview when document changes
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => {
+        if (event.document.languageId === 'quarkdown') {
+            previewProvider.updatePreview(event.document);
+        }
+    }));
+    // 初回起動時にウェルカムメッセージを表示（新しい実装）
+    const hasShownWelcome = context.globalState.get('quarkdown.hasShownWelcome', false);
+    if (!hasShownWelcome) {
+        const config = vscode.workspace.getConfiguration('quarkdown');
+        if (config.get('showWelcomeMessage', true)) {
+            setTimeout(() => {
+                vscode.commands.executeCommand('quarkdown.showWelcome');
+                context.globalState.update('quarkdown.hasShownWelcome', true);
+            }, 1000); // 1秒後に表示
+        }
     }
-    // Status bar item for Quarkdown
-    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    statusBarItem.text = "$(rocket) Quarkdown";
-    statusBarItem.tooltip = "Quarkdown is active";
-    statusBarItem.command = 'quarkdown.preview';
-    // ステータスバーアイテムを.qmdファイルを開いているときのみ表示
-    const updateStatusBar = () => {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
-            statusBarItem.show();
-        }
-        else {
-            statusBarItem.hide();
-        }
-    };
-    context.subscriptions.push(statusBarItem);
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateStatusBar));
-    updateStatusBar(); // 初回実行
 }
-exports.activate = activate;
 function deactivate() {
     console.log('👋 Quarkdown extension is now deactivated.');
-    // クリーンアップ
-    if (global.quarkdownUpdateTimeout) {
-        clearTimeout(global.quarkdownUpdateTimeout);
-    }
 }
-exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map

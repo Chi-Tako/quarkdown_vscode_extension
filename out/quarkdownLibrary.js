@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCategories = exports.getFunctionByName = exports.getFunctionsByCategory = exports.QUARKDOWN_DOCTYPES = exports.QUARKDOWN_LAYOUTS = exports.QUARKDOWN_THEMES = exports.QUARKDOWN_FUNCTIONS = void 0;
+exports.QUARKDOWN_DOCTYPES = exports.QUARKDOWN_LAYOUTS = exports.QUARKDOWN_THEMES = exports.QUARKDOWN_FUNCTIONS = void 0;
+exports.getFunctionsByCategory = getFunctionsByCategory;
+exports.getFunctionByName = getFunctionByName;
+exports.getCategories = getCategories;
 exports.QUARKDOWN_FUNCTIONS = [
     // Mathematical Functions
     {
@@ -347,13 +350,10 @@ exports.QUARKDOWN_DOCTYPES = [
 function getFunctionsByCategory(category) {
     return exports.QUARKDOWN_FUNCTIONS.filter(f => f.category === category);
 }
-exports.getFunctionsByCategory = getFunctionsByCategory;
 function getFunctionByName(name) {
     return exports.QUARKDOWN_FUNCTIONS.find(f => f.name === name);
 }
-exports.getFunctionByName = getFunctionByName;
 function getCategories() {
     return [...new Set(exports.QUARKDOWN_FUNCTIONS.map(f => f.category))];
 }
-exports.getCategories = getCategories;
 //# sourceMappingURL=quarkdownLibrary.js.map

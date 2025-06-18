@@ -1,40 +1,92 @@
 {
-  "version": "0.2",
-  "language": "en",
-  "words": [
-    "Quarkdown",
-    "quarkdown",
-    "darko",
-    "Darko",
-    "Segoe",
-    "Cascadia",
-    "BlinkMacSystemFont",
-    "vscode",
-    "webview",
-    "tsconfig",
-    "intellisense",
-    "mathjs",
-    "mathjax",
-    "webkit",
-    "stdout",
-    "stderr",
-    "rgba",
-    "qmd",
-    "slideshow",
-    "tmLanguage",
-    "webserver",
-    "repl",
-    "distzip",
-    "jvm"
-  ],
-  "enableFiletypes": [
-    "typescript",
-    "json",
-    "markdown"
-  ],
-  "ignorePaths": [
-    "node_modules/**",
-    "out/**",
-    "*.min.js"
-  ]
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "quarkdown",
+        "qmd",
+        "darko",
+        "mathjs",
+        "mathjax",
+        "consolas",
+        "jetbrains",
+        "fira",
+        "yourname",
+        "username",
+        "vscode",
+        "typescript",
+        "webview",
+        "extensionuri",
+        "outdir",
+        "rootdir",
+        "tsconfig",
+        "templiteral",
+        "instanceof",
+        "readonly",
+        "nodenext",
+        "esnext",
+        "commonjs",
+        "stringify",
+        "filesystem",
+        "pathext",
+        "previewprovider",
+        "webviewpanel",
+        "deserialize",
+        "fallback",
+        "readonly",
+        "chiba",
+        "powerShell",
+        "powershell"
+    ],
+    "flagWords": [],
+    "ignorePaths": [
+        "node_modules/**",
+        "out/**",
+        "*.min.js",
+        "*.map"
+    ],
+    "ignoreRegExpList": [
+        "/\\\\[ux][0-9a-fA-F]{4}/g",
+        "/0x[0-9a-fA-F]+/g",
+        "/\\$\\{[^}]+\\}/g"
+    ],
+    "overrides": [
+        {
+            "filename": "**/*.ts",
+            "words": [
+                "promisify",
+                "execasync",
+                "mkdir",
+                "rmdir",
+                "fswatch",
+                "childprocess",
+                "stdout",
+                "stderr",
+                "viewcolumn",
+                "webviewoptions",
+                "localresourceroots",
+                "enablescripts",
+                "preprocessquarkdownsyntax",
+                "rendermarkdowncontent",
+                "wrapincompletehtml",
+                "getquarkdowncss",
+                "getmathjaxscript",
+                "getloadinghtml",
+                "geterrorhtml",
+                "savesettings",
+                "exporttopdf",
+                "exporttoslides"
+            ]
+        },
+        {
+            "filename": "**/*.json",
+            "words": [
+                "endregion",
+                "autoclosing",
+                "surrounding",
+                "linecomment",
+                "blockcomment",
+                "tmLanguage"
+            ]
+        }
+    ]
 }

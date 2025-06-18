@@ -1,11 +1,11 @@
 {
   "name": "quarkdown-vscode",
   "displayName": "Quarkdown",
-  "description": "Quarkdown support for Visual Studio Code",
+  "description": "Comprehensive Quarkdown support for Visual Studio Code with advanced syntax highlighting, live preview, and project management",
   "version": "1.0.0",
   "publisher": "quarkdown",
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.74.0"
   },
   "categories": [
     "Programming Languages",
@@ -15,9 +15,16 @@
     "quarkdown",
     "markdown",
     "qmd",
-    "document"
+    "document",
+    "preview",
+    "export",
+    "pdf",
+    "slides"
   ],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:quarkdown"
+  ],
   "contributes": {
     "languages": [
       {
@@ -29,11 +36,7 @@
         "extensions": [
           ".qmd"
         ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./icons/quarkdown-light.svg",
-          "dark": "./icons/quarkdown-dark.svg"
-        }
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
@@ -82,7 +85,7 @@
       },
       {
         "command": "quarkdown.insertFunction",
-        "title": "🔧 Insert Function",
+        "title": "⚡ Insert Function",
         "category": "Quarkdown",
         "icon": "$(symbol-function)"
       },
@@ -93,35 +96,73 @@
         "icon": "$(symbol-variable)"
       },
       {
-        "command": "quarkdown.checkInstallation",
-        "title": "🔍 Check Installation",
+        "command": "quarkdown.openSettings",
+        "title": "⚙️ Open Quarkdown Settings",
         "category": "Quarkdown",
-        "icon": "$(tools)"
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "quarkdown.showWelcome",
+        "title": "👋 Show Welcome Message",
+        "category": "Quarkdown",
+        "icon": "$(info)"
       }
     ],
     "menus": {
-      "editor/context": [
+      "commandPalette": [
         {
-          "when": "resourceLangId == quarkdown",
           "command": "quarkdown.preview",
-          "group": "quarkdown@1"
+          "when": "editorLangId == quarkdown"
         },
         {
-          "when": "resourceLangId == quarkdown",
           "command": "quarkdown.exportPdf",
-          "group": "quarkdown@2"
+          "when": "editorLangId == quarkdown"
         },
         {
-          "when": "resourceLangId == quarkdown",
           "command": "quarkdown.exportSlides",
-          "group": "quarkdown@3"
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.insertFunction",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.insertVariable",
+          "when": "editorLangId == quarkdown"
+        },
+        {
+          "command": "quarkdown.addChapter",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "quarkdown.addLibraryFile",
+          "when": "workspaceFolderCount > 0"
         }
       ],
       "editor/title": [
         {
-          "when": "resourceLangId == quarkdown",
           "command": "quarkdown.preview",
+          "when": "editorLangId == quarkdown",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "quarkdown.insertFunction",
+          "when": "editorLangId == quarkdown",
+          "group": "quarkdown@1"
+        },
+        {
+          "command": "quarkdown.insertVariable",
+          "when": "editorLangId == quarkdown",
+          "group": "quarkdown@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "quarkdown.createProject",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@10"
         }
       ]
     },
@@ -148,38 +189,60 @@
     "configuration": {
       "title": "Quarkdown",
       "properties": {
+        "quarkdown.cliPath": {
+          "type": "string",
+          "default": "quarkdown",
+          "markdownDescription": "**Path to Quarkdown CLI executable**\n\n**Windows Users:** You may need to specify the full path to `quarkdown.bat`\n\n**Examples:**\n- Default: `quarkdown`\n- Windows: `C:\\\\path\\\\to\\\\quarkdown.bat`\n- Linux/Mac: `/usr/local/bin/quarkdown`\n\n**Common Windows Paths:**\n- `C:\\\\Users\\\\[username]\\\\Project\\\\quarkdown\\\\bin\\\\quarkdown.bat`\n- `quarkdown.bat` (if in PATH)\n\n**To find your path on Windows:**\n- Run `where quarkdown.bat` in PowerShell\n- Or run `Get-Command quarkdown | Select-Object Source`",
+          "scope": "window",
+          "order": 1
+        },
         "quarkdown.previewTheme": {
           "type": "string",
           "default": "darko",
           "enum": ["", "darko", "academic"],
-          "enumDescriptions": ["Default theme", "Dark theme", "Academic theme"],
-          "description": "Default theme for preview"
+          "enumDescriptions": [
+            "Default theme - Clean, professional appearance",
+            "Dark theme - Dark background with vibrant syntax highlighting",
+            "Academic theme - Optimized for research papers and formal documents"
+          ],
+          "markdownDescription": "Default theme for document preview",
+          "scope": "window",
+          "order": 2
         },
         "quarkdown.previewLayout": {
           "type": "string",
           "default": "minimal",
           "enum": ["minimal", "standard", "wide", "narrow"],
-          "description": "Default layout for preview"
+          "enumDescriptions": [
+            "Minimal - 800px max-width, clean margins",
+            "Standard - 1000px max-width, balanced layout",
+            "Wide - 1200px max-width, full screen utilization",
+            "Narrow - 600px max-width, focused reading"
+          ],
+          "markdownDescription": "Default layout for document preview",
+          "scope": "window",
+          "order": 3
         },
         "quarkdown.enableMath": {
           "type": "boolean",
           "default": true,
-          "description": "Enable MathJax for mathematical expressions"
+          "markdownDescription": "Enable MathJax for mathematical expressions rendering\n\nSupports LaTeX syntax: `$inline$` and `$$display$$`",
+          "scope": "window",
+          "order": 4
         },
         "quarkdown.enableAutoPreview": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically update preview when document changes"
+          "markdownDescription": "Automatically update preview when document changes\n\nWhen enabled, the preview will refresh in real-time as you edit",
+          "scope": "window",
+          "order": 5
         },
-        "quarkdown.cliPath": {
-          "type": "string",
-          "default": "quarkdown",
-          "description": "Path to Quarkdown CLI executable"
-        },
-        "quarkdown.hasShownWelcome": {
+        "quarkdown.showWelcomeMessage": {
           "type": "boolean",
-          "default": false,
-          "description": "Whether the welcome message has been shown"
+          "default": true,
+          "markdownDescription": "Show welcome message and setup guidance on first use",
+          "scope": "application",
+          "order": 6
         }
       }
     }
@@ -187,12 +250,18 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.75.0",
+    "@types/vscode": "^1.74.0",
     "@types/node": "18.x",
-    "typescript": "^4.9.4"
+    "typescript": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0"
   },
   "dependencies": {}
 }

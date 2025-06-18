@@ -1,43 +1,3 @@
-# 🚀 Quarkdown for VS Code
-
-A comprehensive Visual Studio Code extension that provides full support for Quarkdown files (`.qmd`), offering advanced syntax highlighting, intelligent code completion, live preview, and powerful project management features.
-
-## ✨ Features
-
-### 🎨 Advanced Language Support
-- **Rich Syntax Highlighting**: Full support for Quarkdown-specific syntax including functions, variables, control structures, and file operations
-- **IntelliSense**: Smart auto-completion for 50+ standard library functions with parameter hints and documentation
-- **Go to Definition**: Navigate to function and variable definitions across files
-- **Find References**: Find all usages of functions and variables in your project
-- **Symbol Outline**: Document structure view with functions, variables, headings, and control blocks
-- **Rename Refactoring**: Safely rename user-defined functions and variables across your project
-
-### 👁️ Enhanced Live Preview
-- **Real-time Preview**: Instant rendering of Quarkdown documents with auto-refresh
-- **Multiple Themes**: Switch between Default, Dark (Darko), and Academic themes
-- **Flexible Layouts**: Choose from Minimal, Standard, Wide, and Narrow layouts
-- **MathJax Integration**: Beautiful mathematical expression rendering with LaTeX support
-- **Interactive Controls**: Theme and layout switching directly in preview
-- **File Watching**: Automatic updates when files change
-
-### 📤 Export Capabilities
-- **PDF Export**: Generate high-quality PDF documents
-- **Slide Presentations**: Create reveal.js-powered interactive presentations
-- **Multiple Formats**: Support for articles, books, slides, and paged documents
-- **Progress Indicators**: Visual feedback during export operations
-
-### 🏗️ Project Management
-- **Project Templates**: Quick start with Article, Presentation, Book, and Basic Document templates
-- **Chapter Management**: Add new chapters to book projects
-- **Library Files**: Create and manage reusable function libraries
-- **File Organization**: Automatic directory structure creation
-
-### ⌨️ Productivity Features
-- **Smart Snippets**: Quick insertion of functions and variables with `Ctrl+Shift+F` and `Ctrl+Shift+R`
-- **Context Menus**: Right-click to insert Quarkdown elements
-- **Command Palette**: Full integration with VS Code's command system
-- **Keyboard Shortcuts**: Optimized shortcuts for common operations
-
 ## 🚀 Getting Started
 
 ### Installation
@@ -48,10 +8,45 @@ A comprehensive Visual Studio Code extension that provides full support for Quar
    - Search for "Quarkdown"
    - Click "Install"
 
-2. **Install Quarkdown CLI** (for full functionality):
-   - Download from [Quarkdown Releases](https://github.com/jjallaire/quarkdown/releases)
+2. **Install Quarkdown CLI** (required for full functionality):
+   - Download from [Quarkdown Releases](https://github.com/iamgio/quarkdown/releases)
    - Extract to a directory in your PATH
    - Ensure Java 17+ is installed
+
+### 🪟 Windows-Specific Setup
+
+**Windows users typically need additional configuration:**
+
+1. **Find your Quarkdown installation path**:
+   ```powershell
+   Get-Command quarkdown | Select-Object Source
+   ```
+
+2. **Configure VS Code settings**:
+   - Press `Ctrl+,` to open settings
+   - Search for `quarkdown.cliPath`
+   - Set the full path to your `quarkdown.bat` file
+
+3. **Example configuration**:
+   ```json
+   {
+     "quarkdown.cliPath": "C:\\Users\\yourname\\Project\\quarkdown\\bin\\quarkdown.bat"
+   }
+   ```
+
+**Why is this needed on Windows?**
+- Windows execution file resolution differs between VS Code extensions and command line
+- The extension may not automatically find `.bat` files in PATH
+- Specifying the full path ensures reliable execution
+
+### 🐧🍎 Linux/Mac Setup
+
+For Unix-based systems, the default configuration usually works:
+```json
+{
+  "quarkdown.cliPath": "quarkdown"
+}
+```
 
 ### Quick Start
 
@@ -65,206 +60,198 @@ A comprehensive Visual Studio Code extension that provides full support for Quar
    - Begin with Quarkdown syntax
    - Press `Ctrl+Shift+V` for live preview
 
-## 📖 Quarkdown Syntax Guide
-
-### Functions with Named Parameters
-```quarkdown
-.function {greet}
-    to from:
-    **Hello, .to!** Welcome from .from.
-
-.greet
-    to: {World}
-    from: {Quarkdown Team}
-```
-
-### Variables and References
-```quarkdown
-.var {title} {My Document}
-.var {author} {Your Name}
-.var {version} {1.0}
-
-Document: .title by .author v.version
-```
-
-### Control Flow Structures
-```quarkdown
-.var {showAdvanced} {true}
-
-.if {.showAdvanced}
-🎯 Advanced features enabled!
-
-.foreach {1..5} i:
-- Item .i: Content here
-
-.repeat {3} n:
-Step .n completed successfully!
-```
-
-### Mathematical Expressions
-```quarkdown
-Inline math: $E = mc^2$
-
-Display math:
-$$
-\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
-$$
-
-Complex equations:
-$$
-\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}
-$$
-```
-
-### Layout Functions
-```quarkdown
-.row alignment:{center} gap:{20px}:
-    .column:
-        Left content
-    .column:
-        Right content
-
-.grid {3} gap:{15px}:
-    Item 1
-    Item 2
-    Item 3
-
-.center:
-Centered content
-
-.box padding:{20px} border:{solid}:
-Boxed content
-```
-
-### Document Configuration
-```quarkdown
-.doctype {html}
-.theme {darko}
-.pageformat {A4} orientation:{portrait}
-```
-
-### File Operations
-```quarkdown
-.include {lib/utilities.qmd}
-.read {data/sample.txt} lines:{1..10}
-```
-
-## 🎯 Commands
-
-| Command | Keyboard Shortcut | Description |
-|---------|-------------------|-------------|
-| `Quarkdown: Open Preview` | `Ctrl+Shift+V` | Open live preview |
-| `Quarkdown: Export to PDF` | - | Generate PDF document |
-| `Quarkdown: Export to Slides` | - | Create presentation |
-| `Quarkdown: Create New Project` | - | Start new project |
-| `Quarkdown: Insert Function` | `Ctrl+Shift+F` | Add function template |
-| `Quarkdown: Insert Variable` | `Ctrl+Shift+R` | Add variable definition |
-| `Quarkdown: Add Chapter` | - | Add chapter to book |
-| `Quarkdown: Add Library File` | - | Create function library |
-
 ## ⚙️ Configuration
 
-Customize the extension through VS Code settings:
+### Essential Settings
+
+| Setting | Description | Default | Platform Notes |
+|---------|-------------|---------|----------------|
+| `quarkdown.cliPath` | Path to Quarkdown CLI | `quarkdown` | **Windows**: Use full path to `.bat` file |
+| `quarkdown.previewTheme` | Preview theme | `darko` | All platforms |
+| `quarkdown.previewLayout` | Preview layout | `minimal` | All platforms |
+| `quarkdown.enableMath` | Enable MathJax | `true` | All platforms |
+| `quarkdown.enableAutoPreview` | Auto-refresh preview | `true` | All platforms |
+
+### Example Complete Configuration
 
 ```json
 {
+  "quarkdown.cliPath": "C:\\Users\\yourname\\Project\\quarkdown\\bin\\quarkdown.bat",
   "quarkdown.previewTheme": "darko",
   "quarkdown.previewLayout": "minimal", 
   "quarkdown.enableMath": true,
-  "quarkdown.enableAutoPreview": true,
-  "quarkdown.cliPath": "quarkdown"
+  "quarkdown.enableAutoPreview": true
 }
 ```
 
-## 📁 Project Structure
-
-### Article Project
-```
-my-article/
-├── article.qmd          # Main article
-├── lib/
-│   └── math-utils.qmd   # Shared functions
-├── images/              # Assets
-└── README.md           # Documentation
-```
-
-### Book Project
-```
-my-book/
-├── book.qmd            # Main book file
-├── chapters/           # Individual chapters
-│   ├── chapter1.qmd
-│   ├── chapter2.qmd
-│   └── chapter3.qmd
-├── lib/                # Book utilities
-└── images/             # Figures
-```
-
-## 🎨 Themes and Layouts
-
-### Available Themes
-- **Default**: Clean, professional appearance
-- **Darko**: Dark theme with vibrant syntax highlighting
-- **Academic**: Optimized for research papers and formal documents
-
-### Layout Options
-- **Minimal**: 800px max-width, clean margins
-- **Standard**: 1000px max-width, balanced layout
-- **Wide**: 1200px max-width, full screen utilization
-- **Narrow**: 600px max-width, focused reading
-
 ## 🔧 Troubleshooting
 
-### Preview Not Working
+### Windows Issues
+
+**Preview shows "Configuration Required" error:**
+1. Verify Quarkdown CLI is installed and working:
+   ```powershell
+   quarkdown --version
+   ```
+2. Find the exact path:
+   ```powershell
+   Get-Command quarkdown | Select-Object Source
+   ```
+3. Configure the full path in VS Code settings
+4. Restart VS Code
+
+**Permission or execution errors:**
+- Ensure Java 17+ is installed
+- Check Windows execution policies
+- Try running VS Code as administrator (temporarily)
+
+### Cross-Platform Issues
+
+**Preview Not Working:**
 - Ensure file has `.qmd` extension
 - Check that VS Code recognizes language as "Quarkdown"
-- Verify Quarkdown CLI is installed for full rendering
+- Verify Quarkdown CLI is accessible from command line
 
-### Export Issues
+**Export Issues:**
 - Install Quarkdown CLI and Java 17+
 - Check CLI is in system PATH
 - Verify file syntax is valid
 
-### Syntax Highlighting Problems
+**Syntax Highlighting Problems:**
 - Reload VS Code window (`Ctrl+Shift+P` → "Developer: Reload Window")
 - Check file is recognized as Quarkdown language
 
-## 🤝 Contributing
+### Getting Help
 
-We welcome contributions! The extension supports:
+1. **Check the Console**: Open Developer Tools (`Help` → `Toggle Developer Tools`) for detailed error logs
+2. **Use Quick Actions**: The error page provides quick buttons to open settings
+3. **Verify Installation**: Run `quarkdown --version` in your terminal
+4. **Path Detection**: Check the detailed logs in VS Code Developer Console## 🚀 Getting Started
 
-- Feature requests and bug reports
-- Documentation improvements
-- New project templates
-- Additional themes and layouts
+### Installation
 
-## 📚 Resources
+1. **Install the Extension**:
+   - Open VS Code
+   - Go to Extensions (`Ctrl+Shift+X`)
+   - Search for "Quarkdown"
+   - Click "Install"
 
-- [Quarkdown Documentation](https://github.com/jjallaire/quarkdown)
-- [Quarkdown CLI Releases](https://github.com/jjallaire/quarkdown/releases)
-- [VS Code Extension Development](https://code.visualstudio.com/api)
+2. **Install Quarkdown CLI** (required for full functionality):
+   - Download from [Quarkdown Releases](https://github.com/iamgio/quarkdown/releases)
+   - Extract to a directory in your PATH
+   - Ensure Java 17+ is installed
 
-## 📄 License
+### 🪟 Windows-Specific Setup
 
-MIT License - see LICENSE file for details.
+**Windows users typically need additional configuration:**
 
-## 🎉 Changelog
+1. **Find your Quarkdown installation path**:
+   ```powershell
+   Get-Command quarkdown | Select-Object Source
+   ```
 
-### 0.0.2 Initial Release
-- Complete Quarkdown language support
-- Advanced syntax highlighting for all Quarkdown constructs
-- IntelliSense with 50+ standard library functions
-- Enhanced live preview with theme switching
-- Project templates (Article, Book, Presentation, Basic)
-- Export to PDF and slides
-- Document symbol provider and outline view
-- Go to definition, find references, and rename refactoring
-- Multi-file support with include/import handling
-- Command palette integration
-- Keyboard shortcuts and context menus
+2. **Configure VS Code settings**:
+   - Press `Ctrl+,` to open settings
+   - Search for `quarkdown.cliPath`
+   - Set the full path to your `quarkdown.bat` file
 
----
+3. **Example configuration**:
+   ```json
+   {
+     "quarkdown.cliPath": "C:\\Users\\yourname\\Project\\quarkdown\\bin\\quarkdown.bat"
+   }
+   ```
 
-**Enjoy writing with Quarkdown!** ✨
+**Why is this needed on Windows?**
+- Windows execution file resolution differs between VS Code extensions and command line
+- The extension may not automatically find `.bat` files in PATH
+- Specifying the full path ensures reliable execution
 
-Transform your documentation workflow with the power of programmable Markdown.
+### 🐧🍎 Linux/Mac Setup
+
+For Unix-based systems, the default configuration usually works:
+```json
+{
+  "quarkdown.cliPath": "quarkdown"
+}
+```
+
+### Quick Start
+
+1. **Create a New Project**:
+   - Press `Ctrl+Shift+P`
+   - Type "Quarkdown: Create New Project"
+   - Choose a template and location
+
+2. **Start Writing**:
+   - Create a `.qmd` file
+   - Begin with Quarkdown syntax
+   - Press `Ctrl+Shift+V` for live preview
+
+## ⚙️ Configuration
+
+### Essential Settings
+
+| Setting | Description | Default | Platform Notes |
+|---------|-------------|---------|----------------|
+| `quarkdown.cliPath` | Path to Quarkdown CLI | `quarkdown` | **Windows**: Use full path to `.bat` file |
+| `quarkdown.previewTheme` | Preview theme | `darko` | All platforms |
+| `quarkdown.previewLayout` | Preview layout | `minimal` | All platforms |
+| `quarkdown.enableMath` | Enable MathJax | `true` | All platforms |
+| `quarkdown.enableAutoPreview` | Auto-refresh preview | `true` | All platforms |
+
+### Example Complete Configuration
+
+```json
+{
+  "quarkdown.cliPath": "C:\\Users\\yourname\\Project\\quarkdown\\bin\\quarkdown.bat",
+  "quarkdown.previewTheme": "darko",
+  "quarkdown.previewLayout": "minimal", 
+  "quarkdown.enableMath": true,
+  "quarkdown.enableAutoPreview": true
+}
+```
+
+## 🔧 Troubleshooting
+
+### Windows Issues
+
+**Preview shows "Configuration Required" error:**
+1. Verify Quarkdown CLI is installed and working:
+   ```powershell
+   quarkdown --version
+   ```
+2. Find the exact path:
+   ```powershell
+   Get-Command quarkdown | Select-Object Source
+   ```
+3. Configure the full path in VS Code settings
+4. Restart VS Code
+
+**Permission or execution errors:**
+- Ensure Java 17+ is installed
+- Check Windows execution policies
+- Try running VS Code as administrator (temporarily)
+
+### Cross-Platform Issues
+
+**Preview Not Working:**
+- Ensure file has `.qmd` extension
+- Check that VS Code recognizes language as "Quarkdown"
+- Verify Quarkdown CLI is accessible from command line
+
+**Export Issues:**
+- Install Quarkdown CLI and Java 17+
+- Check CLI is in system PATH
+- Verify file syntax is valid
+
+**Syntax Highlighting Problems:**
+- Reload VS Code window (`Ctrl+Shift+P` → "Developer: Reload Window")
+- Check file is recognized as Quarkdown language
+
+### Getting Help
+
+1. **Check the Console**: Open Developer Tools (`Help` → `Toggle Developer Tools`) for detailed error logs
+2. **Use Quick Actions**: The error page provides quick buttons to open settings
+3. **Verify Installation**: Run `quarkdown --version` in your terminal
+4. **Path Detection**: Check the detailed logs in VS Code Developer Console

@@ -1,9 +1,45 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProjectCommands = exports.showProjectCreationDialog = exports.createProject = exports.PROJECT_TEMPLATES = void 0;
-const vscode = require("vscode");
-const path = require("path");
-const fs = require("fs");
+exports.PROJECT_TEMPLATES = void 0;
+exports.createProject = createProject;
+exports.showProjectCreationDialog = showProjectCreationDialog;
+exports.getProjectCommands = getProjectCommands;
+const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 exports.PROJECT_TEMPLATES = [
     {
         name: 'Article',
@@ -350,7 +386,6 @@ async function createProject(template, targetPath) {
         fs.writeFileSync(filePath, content, 'utf8');
     }
 }
-exports.createProject = createProject;
 async function showProjectCreationDialog() {
     // Show template selection
     const templateItems = exports.PROJECT_TEMPLATES.map(template => ({
@@ -426,7 +461,6 @@ async function showProjectCreationDialog() {
         vscode.window.showErrorMessage(`Failed to create project: ${error.message}`);
     }
 }
-exports.showProjectCreationDialog = showProjectCreationDialog;
 function getProjectCommands() {
     return [
         vscode.commands.registerCommand('quarkdown.createProject', showProjectCreationDialog),
@@ -513,5 +547,4 @@ Example function with parameter: .param
         })
     ];
 }
-exports.getProjectCommands = getProjectCommands;
 //# sourceMappingURL=projectUtils.js.map
