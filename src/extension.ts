@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { AccurateQuarkdownPreviewProvider } from './accuratePreviewProvider';
 import { QuarkdownCompletionProvider, QuarkdownHoverProvider } from './completionProvider';
 import { QuarkdownDefinitionProvider, QuarkdownReferenceProvider, QuarkdownRenameProvider } from './definitionProvider';
@@ -79,9 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('quarkdown.preview', () => {
             const activeEditor = vscode.window.activeTextEditor;
             if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
-                previewProvider.openPreview(activeEditor.document);
+                previewProvider?.openPreview(activeEditor.document);
             } else {
-                vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
+                vscode.window.showErrorMessage(l10n.t('errors.openQuarkdownFile'));
             }
         })
     );
@@ -92,7 +93,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
                 await exportToPdf(activeEditor.document);
             } else {
-                vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
+                vscode.window.showErrorMessage(l10n.t('errors.openQuarkdownFile'));
             }
         })
     );
@@ -103,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (activeEditor && activeEditor.document.languageId === 'quarkdown') {
                 await exportToSlides(activeEditor.document);
             } else {
-                vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
+                vscode.window.showErrorMessage(l10n.t('errors.openQuarkdownFile'));
             }
         })
     );
@@ -116,18 +117,18 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('quarkdown.insertFunction', async () => {
             const editor = vscode.window.activeTextEditor;
             if (!editor || editor.document.languageId !== 'quarkdown') {
-                vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
+                vscode.window.showErrorMessage(l10n.t('errors.openQuarkdownFile'));
                 return;
             }
             
             const functionName = await vscode.window.showInputBox({
-                prompt: 'Enter function name',
+                prompt: l10n.t('input.functionName.prompt'),
                 validateInput: (value) => {
                     if (!value || value.trim().length === 0) {
-                        return 'Function name cannot be empty';
+                        return l10n.t('input.functionName.empty');
                     }
                     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-                        return 'Function name must be a valid identifier';
+                        return l10n.t('input.functionName.invalid');
                     }
                     return undefined;
                 }
@@ -138,8 +139,8 @@ export function activate(context: vscode.ExtensionContext) {
             }
             
             const parameters = await vscode.window.showInputBox({
-                prompt: 'Enter function parameters (optional)',
-                placeHolder: 'param1 param2'
+                prompt: l10n.t('input.functionParams.prompt'),
+                placeHolder: l10n.t('input.functionParams.placeholder')
             });
             
             const functionText = `.function {${functionName}}${parameters ? ` ${parameters}:` : ':'}
@@ -156,18 +157,18 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('quarkdown.insertVariable', async () => {
             const editor = vscode.window.activeTextEditor;
             if (!editor || editor.document.languageId !== 'quarkdown') {
-                vscode.window.showErrorMessage('Please open a Quarkdown (.qmd) file first.');
+                vscode.window.showErrorMessage(l10n.t('errors.openQuarkdownFile'));
                 return;
             }
             
             const varName = await vscode.window.showInputBox({
-                prompt: 'Enter variable name',
+                prompt: l10n.t('input.variableName.prompt'),
                 validateInput: (value) => {
                     if (!value || value.trim().length === 0) {
-                        return 'Variable name cannot be empty';
+                        return l10n.t('input.variableName.empty');
                     }
                     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-                        return 'Variable name must be a valid identifier';
+                        return l10n.t('input.variableName.invalid');
                     }
                     return undefined;
                 }
@@ -178,8 +179,8 @@ export function activate(context: vscode.ExtensionContext) {
             }
             
             const varValue = await vscode.window.showInputBox({
-                prompt: 'Enter variable value',
-                placeHolder: 'Variable value'
+                prompt: l10n.t('input.variableValue.prompt'),
+                placeHolder: l10n.t('input.variableValue.placeholder')
             });
             
             if (varValue === undefined) {
@@ -206,13 +207,13 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('quarkdown.showWelcome', () => {
             const isWindows = process.platform === 'win32';
             const message = isWindows 
-                ? 'Welcome to Quarkdown! Windows users may need to configure the CLI path in settings. Would you like to open the settings now?'
-                : 'Welcome to Quarkdown! The extension should work automatically if Quarkdown CLI is installed.';
+                ? l10n.t('welcome.windows')
+                : l10n.t('welcome.other');
             
-            const action = isWindows ? 'Open Settings' : 'OK';
+            const action = isWindows ? l10n.t('buttons.openSettings') : l10n.t('buttons.ok');
             
-            vscode.window.showInformationMessage(message, action, 'Dismiss').then((selection) => {
-                if (selection === 'Open Settings') {
+            vscode.window.showInformationMessage(message, action, l10n.t('buttons.dismiss')).then((selection) => {
+                if (selection === l10n.t('buttons.openSettings')) {
                     vscode.commands.executeCommand('workbench.action.openSettings', 'quarkdown.cliPath');
                 }
             });
@@ -223,7 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeTextDocument(event => {
             if (event.document.languageId === 'quarkdown') {
-                previewProvider.updatePreview(event.document);
+                previewProvider?.updatePreview(event.document);
             }
         })
     );
@@ -241,7 +242,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
     } catch (error) {
         console.error('Failed to activate Quarkdown extension:', error);
-        vscode.window.showErrorMessage(`Failed to activate Quarkdown extension: ${error}`);
+        vscode.window.showErrorMessage(l10n.t('errors.activationFailed', String(error)));
     }
 }
 
@@ -256,6 +257,6 @@ export function deactivate() {
             previewProvider = undefined;
         }
     } catch (error) {
-        console.error('Error during extension deactivation:', error);
+        console.error(l10n.t('errors.deactivationFailed', String(error)));
     }
 }

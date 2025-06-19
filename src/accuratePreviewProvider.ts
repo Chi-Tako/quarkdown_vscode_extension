@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
+import * as l10n from '@vscode/l10n';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -409,19 +410,19 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
     private getPreviewControls(settings: QuarkdownSettings): string {
         return `
             <div class="qmd-preview-controls">
-                <select onchange="changeTheme(this.value)" aria-label="Select theme">
-                    <option value="darko" ${settings.theme === 'darko' ? 'selected' : ''}>Dark Theme</option>
-                    <option value="" ${settings.theme === '' ? 'selected' : ''}>Default Theme</option>
-                    <option value="academic" ${settings.theme === 'academic' ? 'selected' : ''}>Academic Theme</option>
+                <select onchange="changeTheme(this.value)" aria-label="${l10n.t('preview.controls.selectTheme')}">
+                    <option value="darko" ${settings.theme === 'darko' ? 'selected' : ''}>${l10n.t('preview.theme.dark')}</option>
+                    <option value="" ${settings.theme === '' ? 'selected' : ''}>${l10n.t('preview.theme.default')}</option>
+                    <option value="academic" ${settings.theme === 'academic' ? 'selected' : ''}>${l10n.t('preview.theme.academic')}</option>
                 </select>
-                <select onchange="changeLayout(this.value)" aria-label="Select layout">
-                    <option value="minimal" ${settings.layout === 'minimal' ? 'selected' : ''}>Minimal</option>
-                    <option value="standard" ${settings.layout === 'standard' ? 'selected' : ''}>Standard</option>
-                    <option value="wide" ${settings.layout === 'wide' ? 'selected' : ''}>Wide</option>
-                    <option value="narrow" ${settings.layout === 'narrow' ? 'selected' : ''}>Narrow</option>
+                <select onchange="changeLayout(this.value)" aria-label="${l10n.t('preview.controls.selectLayout')}">
+                    <option value="minimal" ${settings.layout === 'minimal' ? 'selected' : ''}>${l10n.t('preview.layout.minimal')}</option>
+                    <option value="standard" ${settings.layout === 'standard' ? 'selected' : ''}>${l10n.t('preview.layout.standard')}</option>
+                    <option value="wide" ${settings.layout === 'wide' ? 'selected' : ''}>${l10n.t('preview.layout.wide')}</option>
+                    <option value="narrow" ${settings.layout === 'narrow' ? 'selected' : ''}>${l10n.t('preview.layout.narrow')}</option>
                 </select>
-                <button onclick="exportPdf()" title="Export to PDF">📄 PDF</button>
-                <button onclick="exportSlides()" title="Export to Slides">🎞️ Slides</button>
+                <button onclick="exportPdf()" title="${l10n.t('preview.controls.exportPdfTooltip')}">📄 PDF</button>
+                <button onclick="exportSlides()" title="${l10n.t('preview.controls.exportSlidesTooltip')}">🎞️ Slides</button>
             </div>
         `;
     }
@@ -923,28 +924,5 @@ export class AccurateQuarkdownPreviewProvider implements vscode.WebviewPanelSeri
             console.error('Slides export failed:', error);
             vscode.window.showErrorMessage('Slides export not available');
         }
-    }
-
-    // Public method for cleaning up resources
-    public dispose(): void {
-        // Close all file watchers
-        for (const [key, watcher] of this._watchers) {
-            try {
-                watcher.close();
-            } catch (error) {
-                console.error(`Error closing watcher for ${key}:`, error);
-            }
-        }
-        this._watchers.clear();
-        
-        // Close all panels
-        for (const [key, panel] of this._panels) {
-            try {
-                panel.dispose();
-            } catch (error) {
-                console.error(`Error disposing panel for ${key}:`, error);
-            }
-        }
-        this._panels.clear();
     }
 }

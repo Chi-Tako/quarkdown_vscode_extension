@@ -1,0 +1,7 @@
+{
+    "ui": "tdd",
+    "timeout": 20000,
+    "color": true,
+    "require": ["ts-node/register"],
+    "spec": "out/test/suite/*.test.js"
+}

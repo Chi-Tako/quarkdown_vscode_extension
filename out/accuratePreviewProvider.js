@@ -39,34 +39,64 @@ const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
 const util_1 = require("util");
+const l10n = __importStar(require("@vscode/l10n"));
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 class AccurateQuarkdownPreviewProvider {
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
         this._panels = new Map();
         this._watchers = new Map();
-        this._currentSettings = {
+        this._documentSettings = new Map();
+        this._debounceTimers = new Map();
+        this._defaultSettings = {
             theme: 'darko',
             layout: 'minimal',
             enableMath: true,
             enableWatch: true,
             doctype: 'html'
         };
-        this.loadSettings();
+        this.loadDefaultSettings();
     }
     async deserializeWebviewPanel(webviewPanel, state) {
         webviewPanel.webview.options = this.getWebviewOptions();
         webviewPanel.webview.html = this.getLoadingHtml();
         // Restore settings if available
-        if (state?.settings) {
-            this._currentSettings = { ...this._currentSettings, ...state.settings };
+        if (state?.settings && state?.documentUri) {
+            this.updateDocumentSettings(state.documentUri, state.settings);
+        }
+        // Restore preview content if document URI is available
+        if (state?.documentUri) {
+            try {
+                const documentUri = vscode.Uri.parse(state.documentUri);
+                const document = await vscode.workspace.openTextDocument(documentUri);
+                // Register the panel
+                this._panels.set(state.documentUri, webviewPanel);
+                // Setup message handling
+                this.setupMessageHandling(webviewPanel, document);
+                // Setup cleanup on disposal
+                webviewPanel.onDidDispose(() => {
+                    this.cleanup(state.documentUri);
+                });
+                // Update preview content
+                this.updatePreview(document);
+                // Setup file watching if enabled
+                const settings = this.getDocumentSettings(state.documentUri);
+                if (settings.enableWatch) {
+                    this.setupFileWatcher(document);
+                }
+            }
+            catch (error) {
+                console.error('Failed to restore preview content:', error);
+                webviewPanel.webview.html = this.getErrorHtml(error);
+            }
         }
     }
-    loadSettings() {
+    loadDefaultSettings() {
         try {
             const config = vscode.workspace.getConfiguration('quarkdown');
-            this._currentSettings = {
-                ...this._currentSettings,
+            this._defaultSettings = {
+                ...this._defaultSettings,
                 theme: config.get('previewTheme', 'darko'),
                 layout: config.get('previewLayout', 'minimal'),
                 enableMath: config.get('enableMath', true),
@@ -74,8 +104,18 @@ class AccurateQuarkdownPreviewProvider {
             };
         }
         catch (error) {
-            console.error('Failed to load settings:', error);
+            console.error('Failed to load default settings:', error);
         }
+    }
+    getDocumentSettings(documentUri) {
+        if (!this._documentSettings.has(documentUri)) {
+            this._documentSettings.set(documentUri, { ...this._defaultSettings });
+        }
+        return this._documentSettings.get(documentUri);
+    }
+    updateDocumentSettings(documentUri, settings) {
+        const currentSettings = this.getDocumentSettings(documentUri);
+        this._documentSettings.set(documentUri, { ...currentSettings, ...settings });
     }
     openPreview(document) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -88,7 +128,8 @@ class AccurateQuarkdownPreviewProvider {
             this.cleanup(document.uri.toString());
         });
         // Setup file watching
-        if (this._currentSettings.enableWatch) {
+        const settings = this.getDocumentSettings(document.uri.toString());
+        if (settings.enableWatch) {
             this.setupFileWatcher(document);
         }
         // Initial preview update
@@ -104,8 +145,8 @@ class AccurateQuarkdownPreviewProvider {
             switch (message.command) {
                 case 'settingsChanged':
                     if (message.settings) {
-                        this._currentSettings = { ...this._currentSettings, ...message.settings };
-                        await this.saveSettings();
+                        this.updateDocumentSettings(document.uri.toString(), message.settings);
+                        await this.saveDocumentSettings(document.uri.toString());
                         await this.updatePreview(document);
                     }
                     break;
@@ -140,7 +181,7 @@ class AccurateQuarkdownPreviewProvider {
                 throw new Error(`Quarkdown CLI not found at path: "${configuredPath}". Please check your VS Code settings.`);
             }
             const htmlContent = await this.compileQuarkdown(document, quarkdownPath);
-            const enhancedHtml = this.enhanceQuarkdownHtml(htmlContent);
+            const enhancedHtml = this.enhanceQuarkdownHtml(htmlContent, document.uri.toString());
             panel.webview.html = enhancedHtml;
         }
         catch (error) {
@@ -154,7 +195,7 @@ class AccurateQuarkdownPreviewProvider {
         const fileDir = path.dirname(filePath);
         console.log(`🚀 Compiling Quarkdown: "${fileName}"`);
         try {
-            const result = await execAsync(`"${quarkdownPath}" c "${fileName}"`, {
+            const result = await execFileAsync(quarkdownPath, ['c', fileName], {
                 cwd: fileDir,
                 timeout: 30000,
                 env: {
@@ -218,10 +259,17 @@ class AccurateQuarkdownPreviewProvider {
         try {
             const watcher = fs.watch(document.uri.fsPath, (eventType) => {
                 if (eventType === 'change') {
-                    // Debounce the update to avoid excessive calls
-                    setTimeout(() => {
+                    // Clear existing debounce timer
+                    const existingTimer = this._debounceTimers.get(key);
+                    if (existingTimer) {
+                        clearTimeout(existingTimer);
+                    }
+                    // Set new debounce timer
+                    const timer = setTimeout(() => {
                         this.updatePreview(document);
+                        this._debounceTimers.delete(key);
                     }, 300);
+                    this._debounceTimers.set(key, timer);
                 }
             });
             this._watchers.set(key, watcher);
@@ -241,10 +289,50 @@ class AccurateQuarkdownPreviewProvider {
             }
             this._watchers.delete(key);
         }
+        // Clear any pending debounce timer
+        const timer = this._debounceTimers.get(key);
+        if (timer) {
+            clearTimeout(timer);
+            this._debounceTimers.delete(key);
+        }
     }
     cleanup(documentKey) {
         this._panels.delete(documentKey);
         this.stopWatching(documentKey);
+    }
+    dispose() {
+        // Cleanup all panels
+        for (const [key, panel] of this._panels) {
+            try {
+                panel.dispose();
+            }
+            catch (error) {
+                console.error(`Error disposing panel ${key}:`, error);
+            }
+        }
+        this._panels.clear();
+        // Cleanup all watchers
+        for (const [key, watcher] of this._watchers) {
+            try {
+                watcher.close();
+            }
+            catch (error) {
+                console.error(`Error closing watcher ${key}:`, error);
+            }
+        }
+        this._watchers.clear();
+        // Clear all debounce timers
+        for (const [key, timer] of this._debounceTimers) {
+            try {
+                clearTimeout(timer);
+            }
+            catch (error) {
+                console.error(`Error clearing timer ${key}:`, error);
+            }
+        }
+        this._debounceTimers.clear();
+        // Clear document settings
+        this._documentSettings.clear();
     }
     getWebviewOptions() {
         return {
@@ -252,9 +340,10 @@ class AccurateQuarkdownPreviewProvider {
             localResourceRoots: [this._extensionUri]
         };
     }
-    enhanceQuarkdownHtml(htmlContent) {
-        const themeClass = this._currentSettings.theme ? `qmd-theme-${this._currentSettings.theme}` : '';
-        const layoutClass = `qmd-layout-${this._currentSettings.layout}`;
+    enhanceQuarkdownHtml(htmlContent, documentUri) {
+        const settings = this.getDocumentSettings(documentUri);
+        const themeClass = settings.theme ? `qmd-theme-${settings.theme}` : '';
+        const layoutClass = `qmd-layout-${settings.layout}`;
         return `
         <!DOCTYPE html>
         <html lang="en">
@@ -265,37 +354,37 @@ class AccurateQuarkdownPreviewProvider {
             <style>
                 ${this.getQuarkdownCSS()}
             </style>
-            ${this._currentSettings.enableMath ? this.getMathJaxScript() : ''}
+            ${settings.enableMath ? this.getMathJaxScript() : ''}
         </head>
         <body class="${themeClass} ${layoutClass}">
-            ${this.getPreviewControls()}
+            ${this.getPreviewControls(settings)}
             <div class="qmd-content">
                 ${htmlContent}
             </div>
-            ${this.getPreviewScript()}
+            ${this.getPreviewScript(settings)}
         </body>
         </html>`;
     }
-    getPreviewControls() {
+    getPreviewControls(settings) {
         return `
             <div class="qmd-preview-controls">
-                <select onchange="changeTheme(this.value)" aria-label="Select theme">
-                    <option value="darko" ${this._currentSettings.theme === 'darko' ? 'selected' : ''}>Dark Theme</option>
-                    <option value="" ${this._currentSettings.theme === '' ? 'selected' : ''}>Default Theme</option>
-                    <option value="academic" ${this._currentSettings.theme === 'academic' ? 'selected' : ''}>Academic Theme</option>
+                <select onchange="changeTheme(this.value)" aria-label="${l10n.t('preview.controls.selectTheme')}">
+                    <option value="darko" ${settings.theme === 'darko' ? 'selected' : ''}>${l10n.t('preview.theme.dark')}</option>
+                    <option value="" ${settings.theme === '' ? 'selected' : ''}>${l10n.t('preview.theme.default')}</option>
+                    <option value="academic" ${settings.theme === 'academic' ? 'selected' : ''}>${l10n.t('preview.theme.academic')}</option>
                 </select>
-                <select onchange="changeLayout(this.value)" aria-label="Select layout">
-                    <option value="minimal" ${this._currentSettings.layout === 'minimal' ? 'selected' : ''}>Minimal</option>
-                    <option value="standard" ${this._currentSettings.layout === 'standard' ? 'selected' : ''}>Standard</option>
-                    <option value="wide" ${this._currentSettings.layout === 'wide' ? 'selected' : ''}>Wide</option>
-                    <option value="narrow" ${this._currentSettings.layout === 'narrow' ? 'selected' : ''}>Narrow</option>
+                <select onchange="changeLayout(this.value)" aria-label="${l10n.t('preview.controls.selectLayout')}">
+                    <option value="minimal" ${settings.layout === 'minimal' ? 'selected' : ''}>${l10n.t('preview.layout.minimal')}</option>
+                    <option value="standard" ${settings.layout === 'standard' ? 'selected' : ''}>${l10n.t('preview.layout.standard')}</option>
+                    <option value="wide" ${settings.layout === 'wide' ? 'selected' : ''}>${l10n.t('preview.layout.wide')}</option>
+                    <option value="narrow" ${settings.layout === 'narrow' ? 'selected' : ''}>${l10n.t('preview.layout.narrow')}</option>
                 </select>
-                <button onclick="exportPdf()" title="Export to PDF">📄 PDF</button>
-                <button onclick="exportSlides()" title="Export to Slides">🎞️ Slides</button>
+                <button onclick="exportPdf()" title="${l10n.t('preview.controls.exportPdfTooltip')}">📄 PDF</button>
+                <button onclick="exportSlides()" title="${l10n.t('preview.controls.exportSlidesTooltip')}">🎞️ Slides</button>
             </div>
         `;
     }
-    getPreviewScript() {
+    getPreviewScript(settings) {
         return `
             <script>
                 const vscode = acquireVsCodeApi();
@@ -331,8 +420,8 @@ class AccurateQuarkdownPreviewProvider {
                 // Save state
                 vscode.setState({
                     settings: {
-                        theme: '${this._currentSettings.theme}',
-                        layout: '${this._currentSettings.layout}'
+                        theme: '${settings.theme}',
+                        layout: '${settings.layout}'
                     }
                 });
             </script>
@@ -744,14 +833,24 @@ class AccurateQuarkdownPreviewProvider {
         </html>`;
     }
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        if (typeof text !== 'string') {
+            return '';
+        }
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
-    async saveSettings() {
+    async saveDocumentSettings(documentUri) {
         try {
+            const settings = this.getDocumentSettings(documentUri);
             const config = vscode.workspace.getConfiguration('quarkdown');
-            await config.update('previewSettings', this._currentSettings, vscode.ConfigurationTarget.Workspace);
+            await config.update('previewTheme', settings.theme, vscode.ConfigurationTarget.Workspace);
+            await config.update('previewLayout', settings.layout, vscode.ConfigurationTarget.Workspace);
+            await config.update('enableMath', settings.enableMath, vscode.ConfigurationTarget.Workspace);
+            await config.update('enableAutoPreview', settings.enableWatch, vscode.ConfigurationTarget.Workspace);
         }
         catch (error) {
             console.error('Failed to save settings:', error);
@@ -776,29 +875,6 @@ class AccurateQuarkdownPreviewProvider {
             console.error('Slides export failed:', error);
             vscode.window.showErrorMessage('Slides export not available');
         }
-    }
-    // Public method for cleaning up resources
-    dispose() {
-        // Close all file watchers
-        for (const [key, watcher] of this._watchers) {
-            try {
-                watcher.close();
-            }
-            catch (error) {
-                console.error(`Error closing watcher for ${key}:`, error);
-            }
-        }
-        this._watchers.clear();
-        // Close all panels
-        for (const [key, panel] of this._panels) {
-            try {
-                panel.dispose();
-            }
-            catch (error) {
-                console.error(`Error disposing panel for ${key}:`, error);
-            }
-        }
-        this._panels.clear();
     }
 }
 exports.AccurateQuarkdownPreviewProvider = AccurateQuarkdownPreviewProvider;

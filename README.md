@@ -2,6 +2,43 @@
 
 **Version 0.1.2** - A comprehensive Quarkdown support extension for Visual Studio Code with advanced syntax highlighting, live preview, and project management capabilities.
 
+## 🧪 Development and Testing
+
+This extension includes a comprehensive test suite for ensuring quality and reliability.
+
+### Running Tests
+
+```bash
+# Install dependencies
+npm install
+
+# Compile TypeScript
+npm run compile
+
+# Run linting
+npm run lint
+
+# Run all tests
+npm test
+
+# Quick setup verification
+node test-simple.js
+```
+
+### Test Structure
+
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Extension activation and command registration
+- **Provider Tests**: Language features like completion and hover
+- **End-to-End Tests**: Full workflow testing
+
+### Development Commands
+
+```bash
+npm run watch      # Watch mode compilation
+npm run pretest    # Compile + lint (pre-test validation)
+```
+
 ## 🚀 Getting Started
 
 ### Installation

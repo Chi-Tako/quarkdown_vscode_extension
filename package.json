@@ -202,7 +202,11 @@
         "quarkdown.previewTheme": {
           "type": "string",
           "default": "darko",
-          "enum": ["", "darko", "academic"],
+          "enum": [
+            "",
+            "darko",
+            "academic"
+          ],
           "enumDescriptions": [
             "Default theme - Clean, professional appearance",
             "Dark theme - Dark background with vibrant syntax highlighting",
@@ -215,7 +219,12 @@
         "quarkdown.previewLayout": {
           "type": "string",
           "default": "minimal",
-          "enum": ["minimal", "standard", "wide", "narrow"],
+          "enum": [
+            "minimal",
+            "standard",
+            "wide",
+            "narrow"
+          ],
           "enumDescriptions": [
             "Minimal - 800px max-width, clean margins",
             "Standard - 1000px max-width, balanced layout",
@@ -259,14 +268,20 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "18.x",
-    "typescript": "^5.0.0",
+    "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^8.0.0",
+    "mocha": "^11.7.0",
+    "typescript": "^5.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@vscode/l10n": "^0.0.18"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/quarkdown/quarkdown-vscode-extension.git"

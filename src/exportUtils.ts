@@ -3,6 +3,7 @@ import * as path from 'path';
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
+import * as l10n from '@vscode/l10n';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -16,10 +17,10 @@ export async function exportToPdf(document: vscode.TextDocument): Promise<void> 
         
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'Exporting to PDF...',
+            title: l10n.t('export.pdf.progress'),
             cancellable: false
         }, async (progress) => {
-            progress.report({ increment: 0, message: 'Starting PDF export...' });
+            progress.report({ increment: 0, message: l10n.t('export.pdf.starting') });
             
             try {
                 // Secure command execution using execFile
@@ -33,38 +34,38 @@ export async function exportToPdf(document: vscode.TextDocument): Promise<void> 
                     console.warn('Quarkdown stderr:', stderr);
                 }
                 
-                progress.report({ increment: 100, message: 'PDF export completed!' });
+                progress.report({ increment: 100, message: l10n.t('export.pdf.completed') });
                 
                 // PDF が実際に生成されたかチェック
                 if (fs.existsSync(outputPath)) {
                     const openPdf = await vscode.window.showInformationMessage(
-                        `PDF exported successfully to ${path.basename(outputPath)}`,
-                        'Open PDF', 'Show in Folder'
+                        l10n.t('export.pdf.success', path.basename(outputPath)),
+                        l10n.t('buttons.openPdf'), l10n.t('buttons.showInFolder')
                     );
                     
-                    if (openPdf === 'Open PDF') {
+                    if (openPdf === l10n.t('buttons.openPdf')) {
                         await vscode.env.openExternal(vscode.Uri.file(outputPath));
-                    } else if (openPdf === 'Show in Folder') {
+                    } else if (openPdf === l10n.t('buttons.showInFolder')) {
                         await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outputPath));
                     }
                 } else {
-                    throw new Error('PDF file was not generated. Check the output directory.');
+                    throw new Error(l10n.t('export.pdf.notGenerated'));
                 }
             } catch (error) {
                 const errorMessage = (error as Error).message;
                 console.error('PDF export error:', errorMessage);
                 
                 if (errorMessage.includes('command not found') || errorMessage.includes('not recognized')) {
-                    throw new Error('Quarkdown CLI not found. Please install it from https://github.com/iamgio/quarkdown/releases');
+                    throw new Error(l10n.t('export.pdf.cliNotFound'));
                 } else if (errorMessage.includes('Java')) {
-                    throw new Error('Java 17+ is required. Please install Java and ensure it\'s in your PATH.');
+                    throw new Error(l10n.t('export.pdf.javaRequired'));
                 } else {
-                    throw new Error(`PDF export failed: ${errorMessage}`);
+                    throw new Error(l10n.t('export.pdf.failed', errorMessage));
                 }
             }
         });
     } catch (error) {
-        vscode.window.showErrorMessage(`PDF Export Error: ${(error as Error).message}`);
+        vscode.window.showErrorMessage(l10n.t('export.pdf.error', (error as Error).message));
     }
 }
 
@@ -77,20 +78,20 @@ export async function exportToSlides(document: vscode.TextDocument): Promise<voi
         
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'Exporting to Slides...',
+            title: l10n.t('export.slides.progress'),
             cancellable: false
         }, async (progress) => {
-            progress.report({ increment: 0, message: 'Starting slides export...' });
+            progress.report({ increment: 0, message: l10n.t('export.slides.starting') });
             
             try {
                 // スライドの場合、doctypeがslidesになっていることを確認
                 const content = document.getText();
                 if (!content.includes('.doctype {slides}')) {
                     const addDoctype = await vscode.window.showWarningMessage(
-                        'Document type is not set to slides. Add .doctype {slides} to your document?',
-                        'Yes', 'No'
+                        l10n.t('export.slides.doctypePrompt'),
+                        l10n.t('buttons.yes'), l10n.t('buttons.no')
                     );
-                    if (addDoctype === 'Yes') {
+                    if (addDoctype === l10n.t('buttons.yes')) {
                         const edit = new vscode.WorkspaceEdit();
                         edit.insert(document.uri, new vscode.Position(0, 0), '.doctype {slides}\n\n');
                         await vscode.workspace.applyEdit(edit);
@@ -108,28 +109,28 @@ export async function exportToSlides(document: vscode.TextDocument): Promise<voi
                     console.warn('Quarkdown stderr:', stderr);
                 }
                 
-                progress.report({ increment: 100, message: 'Slides export completed!' });
+                progress.report({ increment: 100, message: l10n.t('export.slides.completed') });
                 
                 if (fs.existsSync(outputPath)) {
                     const openSlides = await vscode.window.showInformationMessage(
-                        `Slides exported successfully to ${path.basename(outputPath)}`,
-                        'Open in Browser', 'Show in Folder'
+                        l10n.t('export.slides.success', path.basename(outputPath)),
+                        l10n.t('buttons.openInBrowser'), l10n.t('buttons.showInFolder')
                     );
                     
-                    if (openSlides === 'Open in Browser') {
+                    if (openSlides === l10n.t('buttons.openInBrowser')) {
                         await vscode.env.openExternal(vscode.Uri.file(outputPath));
-                    } else if (openSlides === 'Show in Folder') {
+                    } else if (openSlides === l10n.t('buttons.showInFolder')) {
                         await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outputPath));
                     }
                 } else {
-                    throw new Error('Slides file was not generated. Check the output directory.');
+                    throw new Error(l10n.t('export.slides.notGenerated'));
                 }
             } catch (error) {
-                throw new Error(`Failed to export slides: ${(error as Error).message}`);
+                throw new Error(l10n.t('export.slides.failed', (error as Error).message));
             }
         });
     } catch (error) {
-        vscode.window.showErrorMessage(`Slides Export Error: ${(error as Error).message}`);
+        vscode.window.showErrorMessage(l10n.t('export.slides.error', (error as Error).message));
     }
 }
 
@@ -148,22 +149,22 @@ export async function checkQuarkdownInstallation(): Promise<void> {
     
     if (!isAvailable) {
         const install = await vscode.window.showErrorMessage(
-            'Quarkdown CLI is not installed or not in PATH. Please install it to use export features.',
-            'Download Quarkdown', 'Learn More'
+            l10n.t('cli.notInstalled'),
+            l10n.t('buttons.downloadQuarkdown'), l10n.t('buttons.learnMore')
         );
         
-        if (install === 'Download Quarkdown') {
+        if (install === l10n.t('buttons.downloadQuarkdown')) {
             await vscode.env.openExternal(vscode.Uri.parse('https://github.com/iamgio/quarkdown/releases/latest'));
-        } else if (install === 'Learn More') {
+        } else if (install === l10n.t('buttons.learnMore')) {
             await vscode.env.openExternal(vscode.Uri.parse('https://github.com/iamgio/quarkdown/wiki'));
         }
     } else {
         try {
             const quarkdownPath = vscode.workspace.getConfiguration('quarkdown').get<string>('cliPath') || 'quarkdown';
             const { stdout } = await execFileAsync(quarkdownPath, ['--help']);
-            vscode.window.showInformationMessage(`Quarkdown CLI is properly installed!`);
+            vscode.window.showInformationMessage(l10n.t('cli.installed'));
         } catch (error) {
-            vscode.window.showWarningMessage(`Quarkdown CLI found but may have issues: ${(error as Error).message}`);
+            vscode.window.showWarningMessage(l10n.t('cli.hasIssues', (error as Error).message));
         }
     }
 }

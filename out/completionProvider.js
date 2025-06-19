@@ -38,7 +38,7 @@ const vscode = __importStar(require("vscode"));
 const quarkdownLibrary_1 = require("./quarkdownLibrary");
 class QuarkdownCompletionProvider {
     provideCompletionItems(document, position, token, context) {
-        const linePrefix = document.lineAt(position).text.substr(0, position.character);
+        const linePrefix = document.lineAt(position).text.substring(0, position.character);
         // Check if we're in a function call context
         if (linePrefix.endsWith('.')) {
             return this.provideFunctionCompletions();
